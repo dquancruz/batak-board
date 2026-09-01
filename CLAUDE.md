@@ -55,6 +55,7 @@ next random LED; a correct press scores a point immediately.
 ## Commands
 
 ```bash
+pip install -r requirements.txt && pip install -e .   # once, per venv (src/ layout needs the editable install)
 python -m batak_board.main          # run the app (auto-detects sim vs. real GPIO)
 BATAK_FORCE_SIM=1 python -m batak_board.main   # force simulation mode
 pytest                              # run tests (engine/leaderboard/simulator; no GPIO or GUI needed)

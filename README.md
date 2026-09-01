@@ -49,16 +49,25 @@ python -m venv .venv
 source .venv/bin/activate            # Windows: .venv\Scripts\activate
 pip install -r requirements.txt      # GUI + core deps
 pip install -r requirements-pi.txt   # only on the Raspberry Pi, for GPIO
+pip install -e .                     # makes the batak_board package importable
 
 python -m batak_board.main
 ```
+
+The `pip install -e .` step is required — the code lives under `src/`, so
+without it Python can't find the `batak_board` package and `python -m
+batak_board.main` fails with `ModuleNotFoundError`.
 
 On a machine without GPIO access, the app automatically falls back to
 **Simulation/Debug mode** — click the on-screen buttons or press `0`–`9` on
 your keyboard to play. Force this mode explicitly with:
 
 ```bash
+# macOS/Linux
 BATAK_FORCE_SIM=1 python -m batak_board.main
+
+# Windows PowerShell
+$env:BATAK_FORCE_SIM=1; python -m batak_board.main
 ```
 
 ## Running tests
