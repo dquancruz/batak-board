@@ -59,6 +59,8 @@ class PlayerSetupScreen(ctk.CTkFrame):
                 placeholder_text=default_name,
                 fg_color=theme.BG_SURFACE_ALT,
                 border_color=theme.BORDER,
+                text_color=theme.TEXT_PRIMARY,
+                placeholder_text_color=theme.TEXT_MUTED,
             )
             entry.pack(pady=(4, 16))
             self._entries.append(entry)

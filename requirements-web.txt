@@ -1,0 +1,5 @@
+# Only needed to run the web dashboard (`python -m batak_board.web`), which
+# lets other devices on the network view/control the board from a browser.
+# Not required for the desktop (customtkinter) app.
+fastapi>=0.110
+uvicorn[standard]>=0.29

@@ -2,19 +2,24 @@
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 import customtkinter as ctk
 
 from batak_board import theme
 from batak_board.config import NUM_BUTTONS
 
+# Every theme color is (light_hex, dark_hex); CTk resolves the pair against
+# the current appearance mode on its own. A few widgets still occasionally
+# take a plain single-mode hex string, so helpers here accept either.
+ColorType = Union[str, tuple[str, str]]
+
 
 def neon_button(
     parent,
     text: str,
     command: Optional[Callable[[], None]] = None,
-    color: str = theme.NEON_CYAN,
+    color: ColorType = theme.NEON_CYAN,
     width: int = 220,
     height: int = 56,
     font=theme.FONT_BUTTON,
@@ -34,8 +39,10 @@ def neon_button(
     )
 
 
-def _darken(hex_color: str, factor: float = 0.75) -> str:
-    hex_color = hex_color.lstrip("#")
+def _darken(color: ColorType, factor: float = 0.75) -> ColorType:
+    if isinstance(color, tuple):
+        return tuple(_darken(c, factor) for c in color)  # type: ignore[return-value]
+    hex_color = color.lstrip("#")
     r, g, b = (int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
     return f"#{int(r * factor):02x}{int(g * factor):02x}{int(b * factor):02x}"
 
@@ -111,6 +118,69 @@ class FeedbackBanner(ctk.CTkLabel):
         if self._pending_clear:
             self.after_cancel(self._pending_clear)
         self._pending_clear = self.after(duration_ms, lambda: self.configure(text=""))
+
+
+class SegmentedChoice(ctk.CTkFrame):
+    """A row of selectable chips, used for the mode/difficulty pickers.
+
+    Built instead of using ``CTkSegmentedButton`` directly: that widget only
+    exposes a single ``text_color`` shared by every chip, selected or not,
+    so there's no way to keep label text readable against both a bright
+    accent fill (selected) and a neutral fill (unselected) at the same
+    time. Each chip here is its own button, styled independently -- same
+    trick :func:`neon_button` uses for contrast against an accent color.
+    """
+
+    def __init__(
+        self,
+        parent,
+        options: list[tuple[str, str]],
+        default: str,
+        on_change: Optional[Callable[[str], None]] = None,
+        accent: ColorType = theme.NEON_CYAN,
+        **kwargs,
+    ):
+        super().__init__(parent, fg_color=theme.BG_SURFACE, corner_radius=theme.CORNER_RADIUS, **kwargs)
+        self._on_change = on_change
+        self._accent = accent
+        self._value = default
+        self._buttons: dict[str, ctk.CTkButton] = {}
+
+        for col, (value, label) in enumerate(options):
+            self.grid_columnconfigure(col, weight=1)
+            button = ctk.CTkButton(
+                self,
+                text=label,
+                font=theme.FONT_BODY,
+                corner_radius=max(theme.CORNER_RADIUS - 4, 0),
+                height=44,
+                command=lambda v=value: self._select(v),
+            )
+            button.grid(row=0, column=col, padx=4, pady=4, sticky="nsew")
+            self._buttons[value] = button
+
+        self._refresh()
+
+    @property
+    def value(self) -> str:
+        return self._value
+
+    def _select(self, value: str) -> None:
+        if value == self._value:
+            return
+        self._value = value
+        self._refresh()
+        if self._on_change:
+            self._on_change(value)
+
+    def _refresh(self) -> None:
+        for value, button in self._buttons.items():
+            selected = value == self._value
+            button.configure(
+                fg_color=self._accent if selected else theme.BG_SURFACE_ALT,
+                hover_color=_darken(self._accent) if selected else theme.BORDER,
+                text_color=theme.BG_PRIMARY if selected else theme.TEXT_PRIMARY,
+            )
 
 
 class ProgressTimerBar(ctk.CTkFrame):

@@ -52,8 +52,30 @@ class App(ctk.CTk):
         self._build_screens(container)
         self.show_screen("main_menu")
 
+        # Floats above every screen (created after `container`, so it stacks
+        # on top) and is available regardless of which screen is showing.
+        self._appearance_mode = "dark"
+        self.theme_toggle = ctk.CTkButton(
+            self,
+            text="☀ LIGHT",
+            width=120,
+            height=36,
+            corner_radius=18,
+            font=theme.FONT_LABEL,
+            fg_color=theme.BG_SURFACE_ALT,
+            hover_color=theme.BORDER,
+            text_color=theme.TEXT_PRIMARY,
+            command=self._toggle_theme,
+        )
+        self.theme_toggle.place(relx=1.0, rely=0.0, x=-16, y=16, anchor="ne")
+
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self._tick_loop()
+
+    def _toggle_theme(self) -> None:
+        self._appearance_mode = "light" if self._appearance_mode == "dark" else "dark"
+        ctk.set_appearance_mode(self._appearance_mode)
+        self.theme_toggle.configure(text="\U0001f319 DARK" if self._appearance_mode == "light" else "☀ LIGHT")
 
     # -- setup -------------------------------------------------------
 
