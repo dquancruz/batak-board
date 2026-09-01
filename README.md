@@ -38,11 +38,57 @@ friend, then check the local leaderboard.
 
 ## Hardware
 
-- Raspberry Pi (any model with GPIO)
-- 10 arcade push buttons, each wired with:
+- Raspberry Pi (any model with a 40-pin GPIO header)
+- 10 arcade push buttons, each with an integrated LED, wired with:
   - one GPIO input pin for the switch
-  - one GPIO output pin for the built-in LED
-- Pin mapping is configured in `src/batak_board/config.py`.
+  - one GPIO output pin for the LED
+
+### Wiring / GPIO pin map
+
+Each button needs two connections to the Pi: the switch leg to its input
+pin (and the other switch leg to any **GND** pin), and the LED's anode to
+its output pin through a current-limiting resistor (~220–330Ω), with the
+LED's cathode to **GND**.
+
+```
+ 3V3 ── (not used by buttons)
+Input pin ──┬── switch ── GND
+LED pin  ── resistor ── LED(+) ── LED(−) ── GND
+```
+
+`gpiozero.Button` is configured with `pull_up=True` (see
+`hardware/gpio_controller.py`), so each switch just needs to short its
+input pin to GND when pressed — no external pull-up/pull-down resistor
+needed on that side.
+
+| Button # | Switch → BCM (header pin) | LED → BCM (header pin) |
+|:--------:|:--------------------------:|:------------------------:|
+| 1  | GPIO5  (pin 29) | GPIO6  (pin 31) |
+| 2  | GPIO13 (pin 33) | GPIO19 (pin 35) |
+| 3  | GPIO26 (pin 37) | GPIO21 (pin 40) |
+| 4  | GPIO20 (pin 38) | GPIO16 (pin 36) |
+| 5  | GPIO12 (pin 32) | GPIO25 (pin 22) |
+| 6  | GPIO24 (pin 18) | GPIO23 (pin 16) |
+| 7  | GPIO18 (pin 12) | GPIO15 (pin 10) |
+| 8  | GPIO14 (pin 8)  | GPIO4  (pin 7)  |
+| 9  | GPIO17 (pin 11) | GPIO27 (pin 13) |
+| 10 | GPIO22 (pin 15) | GPIO10 (pin 19) |
+
+Notes:
+- Button # above is 1-indexed for readability; `config.py`'s
+  `BUTTON_PIN_MAP` keys are 0-indexed (`0`–`9`), so Button 1 in the table
+  is `BUTTON_PIN_MAP[0]`, Button 2 is `BUTTON_PIN_MAP[1]`, and so on.
+- BCM = Broadcom GPIO numbering (what `gpiozero`/`RPi.GPIO` use in code);
+  "header pin" is the physical pin position on the 40-pin header, counting
+  left-to-right/top-to-bottom from the corner nearest the USB ports.
+- Buttons 8's switch (GPIO14) and button 7's LED (GPIO15) are the UART
+  TX/RX pins. They're safe to use as plain GPIO as long as the serial
+  console is disabled (`raspi-config` → *Interface Options* → *Serial Port*
+  → login shell **off**, hardware **on/off** either way). Reassign them in
+  `config.py` if you'd rather keep the serial console available.
+- This mapping is fully customizable — edit `BUTTON_PIN_MAP` in
+  `src/batak_board/config.py` (each entry is `button_index: (switch_pin,
+  led_pin)`, in BCM numbering) to match your own wiring.
 
 ## Requirements
 
