@@ -1,0 +1,284 @@
+/* Same dark/neon dashboard palette as the desktop app's theme.py, plus a
+   light variant. Dark is the default (`:root`); switching `data-theme` on
+   `<html>` (see the toggle button in app.js) swaps every color below --
+   nothing else needs to change since every rule below only ever reads
+   these custom properties. */
+:root {
+  --bg-primary: #0b0e14;
+  --bg-surface: #12161f;
+  --bg-surface-alt: #1a2030;
+  --neon-green: #39ff8f;
+  --neon-red: #ff3b5c;
+  --neon-cyan: #33e1ff;
+  --neon-yellow: #ffd23f;
+  --neon-magenta: #ff3fe0;
+  --text-primary: #eef2ff;
+  --text-muted: #8b98b3;
+  --border: #232a3d;
+  --led-off: #242c3d;
+}
+
+:root[data-theme="light"] {
+  --bg-primary: #f4f6fb;
+  --bg-surface: #ffffff;
+  --bg-surface-alt: #e8ecf5;
+  /* Deeper/more saturated than the dark-mode neons so text and fills stay
+     readable on a near-white background instead of glaring or washing out. */
+  --neon-green: #12a150;
+  --neon-red: #d81140;
+  --neon-cyan: #0891b2;
+  --neon-yellow: #b45309;
+  --neon-magenta: #c026d3;
+  --text-primary: #0f1420;
+  --text-muted: #4b5468;
+  --border: #d7dceb;
+  --led-off: #dfe4f0;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+#app {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.screen {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 520px;
+  text-align: center;
+}
+
+.screen.visible { display: flex; }
+
+.title {
+  font-size: clamp(2.2rem, 8vw, 3.4rem);
+  font-weight: 800;
+  color: var(--neon-cyan);
+  letter-spacing: 0.04em;
+  margin: 0 0 4px;
+}
+
+.subtitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  margin: 0 0 32px;
+}
+
+.heading {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--neon-cyan);
+  margin: 8px 0 28px;
+}
+
+.label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+
+.field { width: 100%; margin-bottom: 20px; text-align: left; }
+.field label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+
+.segmented {
+  display: flex;
+  background: var(--bg-surface);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.segmented button {
+  flex: 1;
+  padding: 14px 8px;
+  background: var(--bg-surface-alt);
+  color: var(--text-primary);
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.segmented button + button { border-left: 1px solid var(--border); }
+.segmented button.active { background: var(--neon-cyan); color: var(--bg-primary); }
+#difficulty-selector button.active { background: var(--neon-green); }
+
+.neon {
+  border: none;
+  border-radius: 14px;
+  font-weight: 800;
+  font-size: 1.1rem;
+  padding: 16px 32px;
+  cursor: pointer;
+  color: var(--bg-primary);
+  background: var(--neon-cyan);
+}
+.neon.neon-green { background: var(--neon-green); }
+.neon.neon-muted { background: var(--bg-surface-alt); color: var(--text-primary); }
+.neon.big { width: 100%; max-width: 320px; padding: 20px 32px; font-size: 1.25rem; margin-top: 12px; }
+.neon:active { transform: translateY(1px); }
+.neon:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.button-row { display: flex; gap: 12px; margin-top: 12px; }
+.button-row .neon { flex: 1; }
+
+#player-inputs { width: 100%; margin-bottom: 8px; }
+.player-field { text-align: left; margin-bottom: 16px; }
+.player-field label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+.player-field input {
+  width: 100%;
+  padding: 14px;
+  font-size: 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface-alt);
+  color: var(--text-primary);
+}
+
+.turn-label { color: var(--neon-cyan); font-size: 1.3rem; font-weight: 800; min-height: 1.6rem; margin: 0 0 4px; }
+.score { font-size: clamp(4rem, 20vw, 6rem); font-weight: 800; color: var(--neon-green); line-height: 1; }
+.feedback-banner { min-height: 2rem; font-size: 1.4rem; font-weight: 800; margin-bottom: 8px; }
+
+.timer { width: 100%; max-width: 420px; margin-bottom: 24px; }
+.timer-track {
+  width: 100%;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--bg-surface-alt);
+  overflow: hidden;
+}
+.timer-fill { height: 100%; width: 100%; background: var(--neon-green); transition: width 0.1s linear, background-color 0.2s; }
+.timer-label { margin-top: 6px; font-size: 0.9rem; color: var(--text-muted); font-weight: 700; }
+
+.led-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  width: 100%;
+  max-width: 420px;
+}
+.led-cell {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--led-off);
+  color: var(--text-muted);
+  font-weight: 800;
+  font-size: 1.1rem;
+  cursor: default;
+}
+.led-cell.clickable { cursor: pointer; }
+.led-cell.active { background: var(--neon-cyan); color: var(--bg-primary); border-color: var(--neon-cyan); }
+
+.hint { margin-top: 16px; font-size: 0.85rem; color: var(--text-muted); }
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+.overlay-card {
+  background: var(--bg-surface);
+  border: 2px solid var(--neon-cyan);
+  border-radius: 14px;
+  padding: 40px;
+  text-align: center;
+}
+.overlay-card p { font-size: 1.6rem; font-weight: 800; margin: 0 0 20px; }
+
+.winner {
+  font-size: 1.6rem;
+  font-weight: 800;
+  min-height: 2rem;
+  animation: pulse-color 0.8s infinite alternate;
+}
+@keyframes pulse-color {
+  from { color: var(--neon-magenta); }
+  to { color: var(--neon-yellow); }
+}
+
+#breakdown { width: 100%; margin-bottom: 20px; }
+.breakdown-row { display: flex; justify-content: space-between; padding: 6px 4px; font-size: 1rem; }
+.breakdown-row .name { color: var(--text-primary); font-weight: 700; }
+.breakdown-row .score { font-size: 1rem; color: var(--neon-green); font-weight: 700; }
+
+.leaderboard {
+  width: 100%;
+  background: var(--bg-surface);
+  border-radius: 14px;
+  padding: 8px 16px;
+  margin-bottom: 24px;
+}
+.leaderboard-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+.leaderboard-row .rank { color: var(--neon-cyan); font-weight: 800; width: 32px; text-align: left; }
+.leaderboard-row .name { flex: 1; text-align: left; }
+.leaderboard-row .score { color: var(--neon-green); font-weight: 700; }
+.leaderboard-row .difficulty { color: var(--text-muted); font-size: 0.85rem; text-transform: capitalize; }
+.leaderboard-empty { padding: 16px; color: var(--text-muted); }
+
+.theme-toggle {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 15;
+  border: none;
+  border-radius: 18px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--bg-surface-alt);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+.theme-toggle:active { transform: translateY(1px); }
+
+.connection-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: var(--neon-red);
+  color: var(--bg-primary);
+  font-weight: 800;
+  text-align: center;
+  padding: 8px;
+  z-index: 20;
+}

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Batak Board</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div id="connection-banner" class="connection-banner" hidden>Reconnecting&hellip;</div>
+  <button id="theme-toggle" class="theme-toggle" type="button">&#9728; LIGHT</button>
+
+  <div id="app">
+    <section id="screen-menu" class="screen">
+      <h1 class="title">BATAK BOARD</h1>
+      <p class="subtitle">REFLEX TRAINING SYSTEM</p>
+
+      <div class="field">
+        <label>GAME MODE</label>
+        <div class="segmented" id="mode-selector">
+          <button data-value="single">1 Player</button>
+          <button data-value="two_player">2 Players (Turns)</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>DIFFICULTY</label>
+        <div class="segmented" id="difficulty-selector">
+          <button data-value="easy">Easy</button>
+          <button data-value="medium">Medium</button>
+          <button data-value="hard">Hard</button>
+        </div>
+      </div>
+
+      <button class="neon neon-green big" id="btn-start-menu">START GAME</button>
+    </section>
+
+    <section id="screen-player_setup" class="screen">
+      <h2 class="heading">PLAYER SETUP</h2>
+      <div id="player-inputs"></div>
+      <div class="button-row">
+        <button class="neon neon-muted" id="btn-back">BACK</button>
+        <button class="neon neon-green" id="btn-continue">CONTINUE</button>
+      </div>
+    </section>
+
+    <section id="screen-game" class="screen">
+      <h2 class="turn-label" id="turn-label"></h2>
+      <div class="score" id="score-label">0</div>
+      <div class="feedback-banner" id="feedback-banner"></div>
+
+      <div class="timer">
+        <div class="timer-track"><div class="timer-fill" id="timer-fill"></div></div>
+        <div class="timer-label" id="timer-label">0.0s</div>
+      </div>
+
+      <div class="led-grid" id="led-grid"></div>
+      <p class="hint" id="sim-hint" hidden>Simulation mode: click a button to press it</p>
+
+      <div class="overlay" id="ready-overlay" hidden>
+        <div class="overlay-card">
+          <p id="ready-label"></p>
+          <button class="neon neon-green" id="btn-ready">READY!</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="screen-results" class="screen">
+      <h2 class="heading">RESULTS</h2>
+      <p class="winner" id="winner-label"></p>
+      <div id="breakdown"></div>
+      <h3 class="label">LEADERBOARD</h3>
+      <div class="leaderboard" id="leaderboard"></div>
+      <button class="neon neon-green big" id="btn-restart">PLAY AGAIN</button>
+    </section>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
