@@ -1,0 +1,3 @@
+# Core + GUI dependencies. Needed on every machine, including dev boxes
+# running only Simulation/Debug mode.
+customtkinter>=5.2,<6
