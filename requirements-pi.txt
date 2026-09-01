@@ -1,0 +1,4 @@
+# Only needed on the Raspberry Pi itself, for real GPIO/LED control.
+# Not required in Simulation/Debug mode on a regular dev machine.
+gpiozero>=2.0
+lgpio>=0.2; platform_system == "Linux"
