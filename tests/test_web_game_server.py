@@ -68,11 +68,6 @@ def test_two_player_flow_uses_ready_overlay_between_turns(tmp_path):
     assert state["awaiting_ready"] is True
     assert state["next_player_name"] == "Beto"
 
-    # button presses are ignored while the ready overlay is showing
-    controller.press(0)
-    server.tick()
-    assert server.session.players[1].score == 0
-
     server.handle_command({"action": "ready_next"})
     assert server.state()["awaiting_ready"] is False
 
@@ -82,6 +77,28 @@ def test_two_player_flow_uses_ready_overlay_between_turns(tmp_path):
     state = server.state()
     assert state["screen"] == "results"
     assert len(state["leaderboard"]) == 2
+
+
+def test_any_button_press_dismisses_ready_overlay(tmp_path):
+    """The overlay must not require a mouse click on a device meant to be
+    played with physical buttons -- pressing any button also dismisses it."""
+    server, controller = make_server(tmp_path)
+    server.handle_command({"action": "set_mode", "value": "two_player"})
+    server.handle_command({"action": "goto_player_setup"})
+    server.handle_command({"action": "start_game", "names": ["Ana", "Beto"]})
+
+    server.engine._round_start -= 999  # end player 1's turn
+    server.tick()
+    assert server.state()["awaiting_ready"] is True
+
+    controller.press(0)  # any button, not necessarily correct for the new round
+    server.tick()
+
+    state = server.state()
+    assert state["awaiting_ready"] is False
+    assert server.session.active_player_index == 1
+    assert server.session.players[1].score == 0  # the wake-up press wasn't scored as a hit
+    assert server.engine.is_running is True  # player 2's round is now live
 
 
 def test_blank_names_default_to_player_n(tmp_path):
