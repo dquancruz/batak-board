@@ -1,6 +1,6 @@
 """Real Raspberry Pi hardware backend, built on ``gpiozero``.
 
-Each of the 10 buttons has an input pin (switch) and an output pin (LED),
+Each of the 12 buttons has an input pin (switch) and an output pin (LED),
 mapped in :data:`batak_board.config.BUTTON_PIN_MAP`. ``gpiozero`` is only
 imported inside :meth:`__init__` so this module can be imported on machines
 without it installed (e.g. Windows/macOS dev boxes) -- they simply can't

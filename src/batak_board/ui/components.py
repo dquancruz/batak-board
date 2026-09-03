@@ -48,7 +48,7 @@ def _darken(color: ColorType, factor: float = 0.75) -> ColorType:
 
 
 class LedGrid(ctk.CTkFrame):
-    """A grid mirroring the 10 physical buttons.
+    """A grid mirroring the 12 physical buttons.
 
     In Simulation/Debug mode (``on_press`` provided) each cell is clickable,
     letting the game be played with the mouse. On real hardware the grid is
@@ -56,7 +56,7 @@ class LedGrid(ctk.CTkFrame):
     clicks are ignored.
     """
 
-    COLUMNS = 5
+    COLUMNS = 4  # 12 buttons -> an even 4x3 grid
 
     def __init__(self, parent, on_press: Optional[Callable[[int], None]] = None, **kwargs):
         super().__init__(parent, fg_color="transparent", **kwargs)

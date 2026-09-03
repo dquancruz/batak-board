@@ -14,9 +14,9 @@ from pathlib import Path
 # Board layout
 # --------------------------------------------------------------------------
 
-NUM_BUTTONS = 10
+NUM_BUTTONS = 12
 
-# BCM pin numbers for each of the 10 buttons: (switch_input_pin, led_output_pin).
+# BCM pin numbers for each of the 12 buttons: (switch_input_pin, led_output_pin).
 # Adjust to match your wiring. Only used by the real GPIO controller.
 BUTTON_PIN_MAP: dict[int, tuple[int, int]] = {
     0: (5, 6),
@@ -29,6 +29,8 @@ BUTTON_PIN_MAP: dict[int, tuple[int, int]] = {
     7: (14, 4),
     8: (17, 27),
     9: (22, 10),
+    10: (9, 11),
+    11: (8, 7),
 }
 
 # --------------------------------------------------------------------------
