@@ -48,6 +48,7 @@ class ResultsScreen(ctk.CTkFrame):
         self._render_breakdown(session)
         self._render_winner(session)
         self._render_leaderboard()
+        self.app.pet.celebrate()  # every round's end, not just a 2-player win; purely cosmetic -- see ui/pet.py
 
     # -- sections ----------------------------------------------------
 

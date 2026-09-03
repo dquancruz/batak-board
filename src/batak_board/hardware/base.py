@@ -9,7 +9,7 @@ from batak_board.config import NUM_BUTTONS
 
 
 class ButtonController(ABC):
-    """Abstraction over the 10 button/LED pairs.
+    """Abstraction over the 12 button/LED pairs.
 
     Concrete implementations (the real GPIO controller or the Simulation/
     Debug controller) only need to drive LEDs and report presses. All game

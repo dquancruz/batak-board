@@ -1,7 +1,7 @@
 # Batak Board
 
 A DIY reflex-training game inspired by the "Batak Board" trainer, built on a
-Raspberry Pi with 10 physical arcade buttons (each with an integrated LED),
+Raspberry Pi with 12 physical arcade buttons (each with an integrated LED),
 a dark/light neon-styled desktop GUI, and a browser dashboard so other
 devices on the network can watch or play too.
 
@@ -21,9 +21,28 @@ friend, then check the local leaderboard.
   | Medium | 1.5s               | 45s |
   | Hard   | 0.8s               | 30s |
 - **Live game screen** — big scoreboard, countdown/progress bar, and a
-  visual grid mirroring the 10 physical buttons.
+  visual grid mirroring the 12 physical buttons.
 - **Results screen** — score breakdown, animated winner announcement (2P),
-  and a local JSON leaderboard of best scores.
+  each player's leaderboard placement, and a local JSON leaderboard of best
+  scores.
+- **Pixel-art pet mascot** — a small purely-decorative critter that idles
+  in the corner of every screen (desktop and web): it bobs, blinks, and
+  reacts to hits/misses with a happy hop or a sad droop. The web dashboard
+  goes further with a full contextual animation set:
+  - idle "quirks" every so often — licking a lollipop, a balloon that
+    floats up and pops, or a little chess-thinking pause;
+  - a hit streak that puts it **on fire** (shades + flames) at 10 in a row,
+    reset by any miss;
+  - **panic mode** — sweating and shaking through the final 10 seconds of
+    the round timer;
+  - **attract mode** on the menu screen when nobody's playing — a
+    DVD-screensaver bounce (with an extra-celebratory exact-corner hit) or
+    a peek-a-boo hide-and-peek;
+  - a sleepy "Zzz" pose if the results screen is left sitting idle;
+  - and a reaction to the leaderboard itself — a triumphant "takeover" beat
+    (with the leaderboard row glowing in) for a top-3 finish, or sitting
+    with a tiny tear puddle and a hand-drawn "F" sign if the score didn't
+    make the board at all.
 - **Light/dark theme toggle** — both the desktop app and the web dashboard
   default to the dark cyberpunk look with a one-click switch to a bright
   theme; each view remembers your choice.
@@ -32,14 +51,14 @@ friend, then check the local leaderboard.
   round live or play remotely; state is pushed to every connected browser
   over a WebSocket. See [Web dashboard](#web-dashboard) below.
 - **Simulation/Debug mode** — no Raspberry Pi? The app auto-detects this and
-  lets you play with mouse clicks or the number keys `0`–`9` (desktop) or
-  on-screen taps (web) instead of physical buttons, so the UI can be
-  developed and tested on any machine.
+  lets you play with mouse clicks or the number keys `0`–`9` plus `-`/`=`
+  for buttons 11-12 (desktop) or on-screen taps (web) instead of physical
+  buttons, so the UI can be developed and tested on any machine.
 
 ## Hardware
 
 - Raspberry Pi (any model with a 40-pin GPIO header)
-- 10 arcade push buttons, each with an integrated LED, wired with:
+- 12 arcade push buttons, each with an integrated LED, wired with:
   - one GPIO input pin for the switch
   - one GPIO output pin for the LED
 
@@ -73,10 +92,12 @@ needed on that side.
 | 8  | GPIO14 (pin 8)  | GPIO4  (pin 7)  |
 | 9  | GPIO17 (pin 11) | GPIO27 (pin 13) |
 | 10 | GPIO22 (pin 15) | GPIO10 (pin 19) |
+| 11 | GPIO9  (pin 21) | GPIO11 (pin 23) |
+| 12 | GPIO8  (pin 24) | GPIO7  (pin 26) |
 
 Notes:
 - Button # above is 1-indexed for readability; `config.py`'s
-  `BUTTON_PIN_MAP` keys are 0-indexed (`0`–`9`), so Button 1 in the table
+  `BUTTON_PIN_MAP` keys are 0-indexed (`0`–`11`), so Button 1 in the table
   is `BUTTON_PIN_MAP[0]`, Button 2 is `BUTTON_PIN_MAP[1]`, and so on.
 - BCM = Broadcom GPIO numbering (what `gpiozero`/`RPi.GPIO` use in code);
   "header pin" is the physical pin position on the 40-pin header, counting
@@ -86,6 +107,11 @@ Notes:
   console is disabled (`raspi-config` → *Interface Options* → *Serial Port*
   → login shell **off**, hardware **on/off** either way). Reassign them in
   `config.py` if you'd rather keep the serial console available.
+- Buttons 11 and 12 use the four SPI0 pins (GPIO7/8/9/11 = CE1/CE0/MISO/
+  SCLK). They're safe to use as plain GPIO as long as the SPI interface is
+  disabled (`raspi-config` → *Interface Options* → *SPI* → **off**, which
+  is the default). Reassign them in `config.py` if you need SPI for
+  something else.
 - This mapping is fully customizable — edit `BUTTON_PIN_MAP` in
   `src/batak_board/config.py` (each entry is `button_index: (switch_pin,
   led_pin)`, in BCM numbering) to match your own wiring.
@@ -116,8 +142,8 @@ without it Python can't find the `batak_board` package and `python -m
 batak_board.main` fails with `ModuleNotFoundError`.
 
 On a machine without GPIO access, the app automatically falls back to
-**Simulation/Debug mode** — click the on-screen buttons or press `0`–`9` on
-your keyboard to play. Force this mode explicitly with:
+**Simulation/Debug mode** — click the on-screen buttons or press `0`–`9`,
+`-`, `=` on your keyboard to play. Force this mode explicitly with:
 
 ```bash
 # macOS/Linux

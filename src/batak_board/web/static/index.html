@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -7,40 +7,43 @@
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <div id="connection-banner" class="connection-banner" hidden>Reconnecting&hellip;</div>
-  <button id="theme-toggle" class="theme-toggle" type="button">&#9728; LIGHT</button>
+  <div id="connection-banner" class="connection-banner" hidden>Reconectando&hellip;</div>
+  <button id="theme-toggle" class="theme-toggle" type="button">&#9728; CLARO</button>
+  <!-- Purely decorative mascot, floats above every screen; see pet.js -->
+  <canvas id="pet-canvas" class="pet-canvas" width="170" height="240" aria-hidden="true"></canvas>
 
   <div id="app">
     <section id="screen-menu" class="screen">
       <h1 class="title">BATAK BOARD</h1>
-      <p class="subtitle">REFLEX TRAINING SYSTEM</p>
+      <p class="subtitle">SISTEMA DE ENTRENAMIENTO DE REFLEJOS</p>
 
       <div class="field">
-        <label>GAME MODE</label>
+        <label>MODO DE JUEGO</label>
         <div class="segmented" id="mode-selector">
-          <button data-value="single">1 Player</button>
-          <button data-value="two_player">2 Players (Turns)</button>
+          <button data-value="single">1 Jugador</button>
+          <button data-value="two_player">2 Jugadores (Turnos)</button>
         </div>
       </div>
 
       <div class="field">
-        <label>DIFFICULTY</label>
+        <label>DIFICULTAD</label>
         <div class="segmented" id="difficulty-selector">
-          <button data-value="easy">Easy</button>
-          <button data-value="medium">Medium</button>
-          <button data-value="hard">Hard</button>
+          <button data-value="easy">Fácil</button>
+          <button data-value="medium">Medio</button>
+          <button data-value="hard">Difícil</button>
         </div>
       </div>
 
-      <button class="neon neon-green big" id="btn-start-menu">START GAME</button>
+      <button class="neon neon-green big" id="btn-start-menu">COMENZAR JUEGO</button>
+      <button class="neon neon-muted big" id="btn-view-leaderboard">VER CLASIFICACIÓN</button>
     </section>
 
     <section id="screen-player_setup" class="screen">
-      <h2 class="heading">PLAYER SETUP</h2>
+      <h2 class="heading">CONFIGURACIÓN DE JUGADORES</h2>
       <div id="player-inputs"></div>
       <div class="button-row">
-        <button class="neon neon-muted" id="btn-back">BACK</button>
-        <button class="neon neon-green" id="btn-continue">CONTINUE</button>
+        <button class="neon neon-muted" id="btn-back">ATRÁS</button>
+        <button class="neon neon-green" id="btn-continue">CONTINUAR</button>
       </div>
     </section>
 
@@ -55,27 +58,40 @@
       </div>
 
       <div class="led-grid" id="led-grid"></div>
-      <p class="hint" id="sim-hint" hidden>Simulation mode: click a button to press it</p>
+      <p class="hint" id="sim-hint" hidden>Modo simulación: haz clic en un botón para presionarlo</p>
 
       <div class="overlay" id="ready-overlay" hidden>
         <div class="overlay-card">
           <p id="ready-label"></p>
-          <button class="neon neon-green" id="btn-ready">READY!</button>
-          <p class="overlay-hint">or press any button on the board</p>
+          <button class="neon neon-green" id="btn-ready">&iexcl;LISTO!</button>
+          <p class="overlay-hint">o presiona cualquier bot&oacute;n del tablero</p>
         </div>
       </div>
     </section>
 
     <section id="screen-results" class="screen">
-      <h2 class="heading">RESULTS</h2>
+      <h2 class="heading">RESULTADOS</h2>
       <p class="winner" id="winner-label"></p>
       <div id="breakdown"></div>
-      <h3 class="label">LEADERBOARD</h3>
+      <!-- Kept right after the breakdown (above the leaderboard list) so it
+           stays reachable without scrolling however long the leaderboard
+           table grows. -->
+      <button class="neon neon-green big" id="btn-restart">JUGAR DE NUEVO</button>
+      <h3 class="label">CLASIFICACI&Oacute;N</h3>
       <div class="leaderboard" id="leaderboard"></div>
-      <button class="neon neon-green big" id="btn-restart">PLAY AGAIN</button>
+    </section>
+
+    <!-- Client-only view: not a server-driven `state.screen` value, just a
+         local toggle (see showingLeaderboardOnly in app.js) so the board
+         can be checked without starting a game. -->
+    <section id="screen-leaderboard" class="screen">
+      <h2 class="heading">CLASIFICACI&Oacute;N</h2>
+      <div class="leaderboard" id="leaderboard-standalone"></div>
+      <button class="neon neon-muted big" id="btn-leaderboard-back">ATR&Aacute;S</button>
     </section>
   </div>
 
+  <script src="/pet.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

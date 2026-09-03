@@ -37,7 +37,7 @@ class GameScreen(ctk.CTkFrame):
         if not self.app.controller.is_hardware:
             ctk.CTkLabel(
                 self,
-                text="Simulation mode: click a button or press keys 0-9",
+                text="Simulation mode: click a button or press keys 0-9, -, =",
                 font=theme.FONT_LABEL,
                 text_color=theme.TEXT_MUTED,
             ).pack(pady=(12, 0))
@@ -68,9 +68,13 @@ class GameScreen(ctk.CTkFrame):
         engine.on_score_change = self._on_score_change
         engine.on_time_left_change = self.timer_bar.update_time
         engine.on_active_button_change = self.led_grid.set_active
-        engine.on_feedback = self.feedback_banner.pulse
+        engine.on_feedback = self._on_feedback
         engine.on_round_end = self._on_round_end
         self._begin_turn()
+
+    def _on_feedback(self, kind: str) -> None:
+        self.feedback_banner.pulse(kind)
+        self.app.pet.react(kind)  # purely cosmetic; see ui/pet.py
 
     def _begin_turn(self) -> None:
         session = self.app.session
