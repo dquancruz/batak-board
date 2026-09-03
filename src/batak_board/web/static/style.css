@@ -214,6 +214,14 @@ html, body {
   justify-content: center;
   z-index: 10;
 }
+/* Author rules for `display` always beat the UA stylesheet's `[hidden]`
+   rule regardless of specificity, so `.overlay { display: flex }` above
+   would otherwise keep the ready-overlay visible (and its READY! button
+   effectively dead, since awaiting_ready is still false) even while the
+   `hidden` attribute is set. This re-asserts it with higher specificity. */
+.overlay[hidden] {
+  display: none;
+}
 .overlay-card {
   background: var(--bg-surface);
   border: 2px solid var(--neon-cyan);
