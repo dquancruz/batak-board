@@ -5,14 +5,14 @@ Guidance for Claude Code when working in this repository.
 ## Project
 
 Batak Board is a reflex-training game (inspired by the "Batak Board" arcade
-trainer) built for a Raspberry Pi driving 10 physical arcade buttons, each
+trainer) built for a Raspberry Pi driving 12 physical arcade buttons, each
 with an integrated LED. A desktop GUI and a browser dashboard both run the
 game, show score/timers, and share a local JSON leaderboard.
 
 ## Tech stack
 
 - **Python 3** for everything (hardware control + both UIs).
-- **`gpiozero`** (preferred over raw `RPi.GPIO`) for the 10 button/LED pairs
+- **`gpiozero`** (preferred over raw `RPi.GPIO`) for the 12 button/LED pairs
   on the Pi — one input pin (switch) and one output pin (LED) per button.
 - **`customtkinter`** for the desktop GUI.
 - **`FastAPI` + WebSockets** (`uvicorn`) for the web dashboard.
