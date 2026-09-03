@@ -69,6 +69,15 @@ class App(ctk.CTk):
         )
         self.theme_toggle.place(relx=1.0, rely=0.0, x=-16, y=16, anchor="ne")
 
+        # Purely decorative mascot, floats above every screen just like the
+        # theme toggle. It only ever reads feedback events (see
+        # `GameScreen._on_feedback`) -- deleting `ui/pet.py` and this block
+        # would not change any gameplay behavior.
+        from batak_board.ui.pet import PetWidget
+
+        self.pet = PetWidget(self)
+        self.pet.place(relx=0.0, rely=0.0, x=16, y=16, anchor="nw")
+
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self._tick_loop()
 
@@ -76,13 +85,18 @@ class App(ctk.CTk):
         self._appearance_mode = "light" if self._appearance_mode == "dark" else "dark"
         ctk.set_appearance_mode(self._appearance_mode)
         self.theme_toggle.configure(text="\U0001f319 DARK" if self._appearance_mode == "light" else "☀ LIGHT")
+        self.pet.refresh_theme()
 
     # -- setup -------------------------------------------------------
 
     def _bind_simulated_keys(self) -> None:
-        """Number keys 0-9 press the matching button in Simulation/Debug mode."""
+        """Number keys 0-9 press buttons 0-9 in Simulation/Debug mode; with
+        12 buttons on the board, the two beyond the digit keys are bound to
+        `-` and `=` (the next two keys along a standard top-row keyboard)."""
         for digit in range(10):
             self.bind(f"<Key-{digit}>", lambda _event, i=digit: self.controller.press(i))
+        self.bind("<Key-minus>", lambda _event: self.controller.press(10))
+        self.bind("<Key-equal>", lambda _event: self.controller.press(11))
 
     def _build_screens(self, container: ctk.CTkFrame) -> None:
         # Imported here (not at module scope) to avoid a circular import,
