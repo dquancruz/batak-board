@@ -185,7 +185,7 @@ html, body {
 
 .led-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr); /* 12 buttons -> an even 4x3 grid */
   gap: 10px;
   width: 100%;
   max-width: 420px;
@@ -244,9 +244,17 @@ html, body {
 }
 
 #breakdown { width: 100%; margin-bottom: 20px; }
-.breakdown-row { display: flex; justify-content: space-between; padding: 6px 4px; font-size: 1rem; }
+.breakdown-row { display: flex; flex-wrap: wrap; justify-content: space-between; padding: 6px 4px; font-size: 1rem; }
 .breakdown-row .name { color: var(--text-primary); font-weight: 700; }
 .breakdown-row .score { font-size: 1rem; color: var(--neon-green); font-weight: 700; }
+.breakdown-row .rank-badge {
+  width: 100%;
+  text-align: right;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--neon-cyan);
+  margin-top: 2px;
+}
 
 .leaderboard {
   width: 100%;
@@ -261,6 +269,18 @@ html, body {
 .leaderboard-row .score { color: var(--neon-green); font-weight: 700; }
 .leaderboard-row .difficulty { color: var(--text-muted); font-size: 0.85rem; text-transform: capitalize; }
 .leaderboard-empty { padding: 16px; color: var(--text-muted); }
+
+/* Marks a row this round's score just took (top-3 "takeover") -- a quick
+   drop-in-and-glow so the insertion reads as a physical event. */
+.leaderboard-row-new {
+  animation: leaderboard-row-in 0.5s ease-out both;
+  border-radius: 8px;
+}
+@keyframes leaderboard-row-in {
+  0% { transform: translateY(-14px); opacity: 0; background: var(--neon-magenta); }
+  60% { transform: translateY(2px); opacity: 1; }
+  100% { transform: translateY(0); opacity: 1; background: transparent; }
+}
 
 .theme-toggle {
   position: fixed;
@@ -278,6 +298,66 @@ html, body {
   border: 1px solid var(--border);
 }
 .theme-toggle:active { transform: translateY(1px); }
+
+.pet-canvas {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 15;
+  image-rendering: pixelated;
+  animation: pet-bob 1.4s ease-in-out infinite;
+  /* Purely decorative -- most of the canvas is empty/transparent space
+     reserved for occasional props (lollipop/balloon), which must never
+     swallow clicks meant for the real UI underneath. */
+  pointer-events: none;
+}
+@keyframes pet-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+/* Transient reaction animations (added/removed by pet.js on hit/wrong/
+   timeout); the class selector's higher specificity overrides the base
+   infinite bob above for one run, then the class is removed and the bob
+   resumes. */
+.pet-canvas.pet-hop { animation: pet-hop 0.45s ease-out; }
+@keyframes pet-hop {
+  0% { transform: translateY(0) scale(1); }
+  40% { transform: translateY(-16px) scale(1.12); }
+  100% { transform: translateY(0) scale(1); }
+}
+.pet-canvas.pet-droop { animation: pet-droop 0.45s ease-out; }
+@keyframes pet-droop {
+  0% { transform: translateY(0) scale(1, 1) rotate(0deg); }
+  40% { transform: translateY(5px) scale(1, 0.92) rotate(-3deg); }
+  100% { transform: translateY(0) scale(1, 1) rotate(0deg); }
+}
+/* Panic mode (final 10s of a round): a fast, tiny jitter layered on top
+   of/instead of the idle bob -- see pet.js's setPanic(). */
+.pet-canvas.pet-shake { animation: pet-shake 0.15s linear infinite; }
+@keyframes pet-shake {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-2px, 1px); }
+  50% { transform: translate(2px, -1px); }
+  75% { transform: translate(-1px, -2px); }
+}
+/* DVD-bounce corner hit: one big flourish, not a loop. */
+.pet-canvas.pet-flash { animation: pet-flash 0.7s ease-out; }
+@keyframes pet-flash {
+  0% { transform: scale(1) rotate(0deg); filter: brightness(1); }
+  35% { transform: scale(1.35) rotate(15deg); filter: brightness(1.6); }
+  70% { transform: scale(1.1) rotate(-8deg); filter: brightness(1.3); }
+  100% { transform: scale(1) rotate(0deg); filter: brightness(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pet-canvas,
+  .pet-canvas.pet-hop,
+  .pet-canvas.pet-droop,
+  .pet-canvas.pet-shake,
+  .pet-canvas.pet-flash {
+    animation: none;
+    transition: none;
+  }
+}
 
 .connection-banner {
   position: fixed;
