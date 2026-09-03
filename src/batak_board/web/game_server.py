@@ -56,7 +56,19 @@ class GameServer:
     # -- driven by the web layer's tick loop -----------------------------
 
     def tick(self) -> None:
-        self.engine.tick()
+        if self.awaiting_ready:
+            # The engine's own tick() never drains the press queue while a
+            # round isn't running (i.e. exactly while this overlay is up),
+            # so it's safe -- and expected -- for us to drain it here: any
+            # button press (physical or via the web remote) also dismisses
+            # the "Ready?" overlay, not just the explicit ready_next command.
+            # This is a physical-button device first; requiring someone to
+            # tap a specific on-screen button would strand a kiosk with no
+            # mouse/touchscreen attached.
+            if self.controller.poll_presses():
+                self._begin_turn()
+        else:
+            self.engine.tick()
         self._notify()
 
     def teardown(self) -> None:
@@ -122,7 +134,9 @@ class GameServer:
             self._begin_turn()
 
     def _press_button(self, message: dict) -> None:
-        if self.screen != "game" or self.awaiting_ready:
+        # Allowed both mid-round and during the "Ready?" overlay (see
+        # tick()) -- just not before a session/round exists at all.
+        if self.screen != "game":
             return
         # In Simulation/Debug mode this is the only way to press a button;
         # on real hardware it doubles as a remote-control input alongside

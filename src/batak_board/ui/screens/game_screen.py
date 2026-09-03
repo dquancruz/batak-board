@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 import customtkinter as ctk
 
 from batak_board import theme
@@ -47,7 +49,14 @@ class GameScreen(ctk.CTkFrame):
         self._ready_label.pack(padx=48, pady=(36, 20))
         neon_button(
             self._ready_overlay, "READY!", command=self._dismiss_ready_overlay, color=theme.NEON_GREEN, width=220
-        ).pack(pady=(0, 36))
+        ).pack(pady=(0, 12))
+        ctk.CTkLabel(
+            self._ready_overlay,
+            text="or press any button on the board",
+            font=theme.FONT_LABEL,
+            text_color=theme.TEXT_MUTED,
+        ).pack(pady=(0, 32))
+        self._ready_poll_job: Optional[str] = None
 
     def _on_grid_press(self, index: int) -> None:
         self.app.controller.press(index)
@@ -96,7 +105,25 @@ class GameScreen(ctk.CTkFrame):
         next_player = session.active_player
         self._ready_label.configure(text=f"Ready, {next_player.name}!")
         self._ready_overlay.place(relx=0.5, rely=0.5, anchor="center")
+        self._poll_ready_dismiss()
+
+    def _poll_ready_dismiss(self) -> None:
+        """While the ready overlay is up, any button press dismisses it too
+        -- not just clicking READY. The engine's own tick() never drains the
+        press queue while a round isn't running (i.e. exactly during this
+        overlay), so it's safe for us to drain it here instead: this is a
+        physical-button device first, and requiring a mouse click here would
+        strand a kiosk with no mouse/touchscreen attached."""
+        if not self.winfo_exists():
+            return  # app closed while the overlay was still up
+        if self.app.controller.poll_presses():
+            self._dismiss_ready_overlay()
+            return
+        self._ready_poll_job = self.after(50, self._poll_ready_dismiss)
 
     def _dismiss_ready_overlay(self) -> None:
+        if self._ready_poll_job is not None:
+            self.after_cancel(self._ready_poll_job)
+            self._ready_poll_job = None
         self._ready_overlay.place_forget()
         self._begin_turn()
