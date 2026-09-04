@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "batak-board"
 version = "0.1.0"
 description = "Reflex-training game for a Raspberry Pi + 10 lit arcade buttons."
-requires-python = ">=3.9"
+requires-python = ">=3.7"
 
 [tool.setuptools.packages.find]
 where = ["src"]

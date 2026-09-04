@@ -9,8 +9,17 @@ instantiate :class:`GpioButtonController`.
 
 from __future__ import annotations
 
+import logging
+
 from batak_board.config import BUTTON_PIN_MAP
 from batak_board.hardware.base import ButtonController
+
+# INFO-level logs here confirm the Pi's GPIO pins are actually seeing the
+# switch/LED electrical activity, independent of game logic -- handy for
+# bench-testing wiring. Enable with `logging.basicConfig(level=logging.INFO)`
+# (already done by both entry points) and watch the console/journal while
+# pressing a physical button.
+logger = logging.getLogger(__name__)
 
 
 class GpioButtonController(ButtonController):
@@ -30,14 +39,20 @@ class GpioButtonController(ButtonController):
         self._leds: dict[int, "LED"] = {}
         for index, (switch_pin, led_pin) in self._pin_map.items():
             button = Button(switch_pin, pull_up=True, bounce_time=0.05)
-            button.when_pressed = self._make_handler(index)
+            button.when_pressed = self._make_handler(index, switch_pin)
             self._buttons[index] = button
             self._leds[index] = LED(led_pin)
+        logger.info(
+            "GPIO controller ready: pin factory=%s, %d button/LED pairs bound",
+            type(self._buttons[0].pin_factory).__name__ if self._buttons else "none",
+            len(self._pin_map),
+        )
 
-    def _make_handler(self, index: int):
+    def _make_handler(self, index: int, switch_pin: int):
         # gpiozero calls this with no arguments on its own event thread;
         # report_press() is queue-based and safe to call from there.
         def _handler() -> None:
+            logger.info("button %d pressed (raw edge on BCM%d)", index, switch_pin)
             self.report_press(index)
 
         return _handler
@@ -50,6 +65,7 @@ class GpioButtonController(ButtonController):
         led = self._leds.get(index)
         if led is None:
             return
+        logger.info("button %d LED -> %s (BCM%d)", index, "ON" if on else "off", led.pin.number)
         if on:
             led.on()
         else:
