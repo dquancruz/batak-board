@@ -90,3 +90,13 @@ LEADERBOARD_MAX_ENTRIES = 10
 
 # How often (seconds) the UI polls the engine/hardware queue.
 ENGINE_TICK_INTERVAL = 0.05
+
+# How long (seconds) the web dashboard holds before a round's timer/LEDs go
+# live, to cover its Fase 2 "entrada al juego" sequence (menu-exit + grid
+# entrance + 3-2-1-¡YA! countdown -- see prompt-animaciones-batak.md). The
+# round genuinely doesn't start until this elapses (see GameServer's
+# awaiting_intro), so the on-screen countdown is never a lie the physical
+# LED/timeout contradicts underneath. Keep in sync with the total of
+# anim.js's DURATIONS.intro / DELAYS.intro constants. Desktop app has no
+# such intro; this is web-only.
+ROUND_INTRO_DURATION = 2.6

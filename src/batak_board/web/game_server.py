@@ -10,9 +10,10 @@ testable like the rest of `game/` and `hardware/`.
 
 from __future__ import annotations
 
+import time
 from typing import Callable, Optional
 
-from batak_board.config import DIFFICULTY_SETTINGS, Difficulty, GameMode
+from batak_board.config import DIFFICULTY_SETTINGS, ROUND_INTRO_DURATION, Difficulty, GameMode
 from batak_board.game.engine import GameEngine
 from batak_board.game.leaderboard import Leaderboard
 from batak_board.game.models import GameSession, Player
@@ -35,6 +36,8 @@ class GameServer:
 
         self.screen: Screen = "menu"
         self.awaiting_ready = False  # 2P "Ready, Player 2!" overlay is showing
+        self.awaiting_intro = False  # Fase 2 entrance sequence is playing; round not live yet
+        self._intro_start: Optional[float] = None
         self.time_left = 0.0
         self.round_duration = 0.0
         self.last_feedback: Optional[str] = None  # "hit" | "wrong" | "timeout"
@@ -66,6 +69,16 @@ class GameServer:
             # tap a specific on-screen button would strand a kiosk with no
             # mouse/touchscreen attached.
             if self.controller.poll_presses():
+                self._start_intro()
+        elif self.awaiting_intro:
+            # Drain and discard presses during the countdown too -- same
+            # reasoning as start_round()'s own drain, so a stray press
+            # against the physical board mid-countdown doesn't get scored
+            # as a hit/wrong the instant the round actually goes live.
+            self.controller.poll_presses()
+            assert self._intro_start is not None
+            if time.monotonic() - self._intro_start >= ROUND_INTRO_DURATION:
+                self.awaiting_intro = False
                 self._begin_turn()
         else:
             self.engine.tick()
@@ -127,11 +140,11 @@ class GameServer:
         ]
         self.session = GameSession(mode=self.selected_mode, difficulty=self.selected_difficulty, players=players)
         self.screen = "game"
-        self._begin_turn()
+        self._start_intro()
 
     def _ready_next(self, _message: dict) -> None:
         if self.awaiting_ready:
-            self._begin_turn()
+            self._start_intro()
 
     def _press_button(self, message: dict) -> None:
         # Allowed both mid-round and during the "Ready?" overlay (see
@@ -149,9 +162,17 @@ class GameServer:
         self.session = None
         self.screen = "menu"
         self.awaiting_ready = False
+        self.awaiting_intro = False
+        self._intro_start = None
         self.last_feedback = None
 
     # -- turn flow ---------------------------------------------------
+
+    def _start_intro(self) -> None:
+        """Fase 2 gate: hold before a round goes live (see tick())."""
+        self.awaiting_ready = False
+        self.awaiting_intro = True
+        self._intro_start = time.monotonic()
 
     def _begin_turn(self) -> None:
         assert self.session is not None
@@ -201,6 +222,10 @@ class GameServer:
                 winner_name = winner.name if winner else None
                 tie = winner is None
 
+        intro_time_left = None
+        if self.awaiting_intro and self._intro_start is not None:
+            intro_time_left = round(max(0.0, ROUND_INTRO_DURATION - (time.monotonic() - self._intro_start)), 2)
+
         return {
             "screen": self.screen,
             "mode": self.selected_mode.value,
@@ -212,6 +237,9 @@ class GameServer:
             "round_duration": self.round_duration,
             "awaiting_ready": self.awaiting_ready,
             "next_player_name": session.active_player.name if (session and self.awaiting_ready) else None,
+            "awaiting_intro": self.awaiting_intro,
+            "intro_time_left": intro_time_left,
+            "intro_duration": ROUND_INTRO_DURATION,
             "last_feedback": self.last_feedback,
             "feedback_seq": self.feedback_seq,
             "winner_name": winner_name,

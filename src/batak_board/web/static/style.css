@@ -37,6 +37,19 @@
 
 * { box-sizing: border-box; }
 
+/* Fase 7: "cambio de tema claro/oscuro, 400ms" -- app.js's applyTheme()
+   adds this class right before flipping data-theme and removes it
+   --dur-micro-theme-swap later, so the (fairly broad) `*` transition only
+   ever exists for that one window instead of paying for it constantly on
+   every element for the rest of the session. Color-ish properties only,
+   deliberately excludes transform/opacity so it can't fight Fase 3/4/5's
+   own animations if a theme swap happens to land mid-round. */
+.theme-transitioning,
+.theme-transitioning * {
+  transition: background-color var(--dur-micro-theme-swap, 400ms) ease, color var(--dur-micro-theme-swap, 400ms) ease,
+    border-color var(--dur-micro-theme-swap, 400ms) ease, fill var(--dur-micro-theme-swap, 400ms) ease !important;
+}
+
 html, body {
   margin: 0;
   min-height: 100%;
@@ -142,8 +155,39 @@ html, body {
 .neon.neon-green { background: var(--neon-green); }
 .neon.neon-muted { background: var(--bg-surface-alt); color: var(--text-primary); }
 .neon.big { width: 100%; max-width: 320px; padding: 20px 32px; font-size: 1.25rem; margin-top: 12px; }
-.neon:active { transform: translateY(1px); }
 .neon:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Fase 7 (micro-interacciones): hover (150ms) and press (scale 0.96,
+   100ms) on every clickable control -- one shared rule instead of
+   repeating it per element. transform/filter only, one-shot transitions
+   (not loops), so this is fine under the perf rules. The :active rule's
+   own transition-duration is what actually plays on press -- press is a
+   more specific state than the base hover, so its 100ms wins the moment
+   the pointer goes down; releasing eases back out over the base 150ms. */
+.neon,
+.segmented button,
+.theme-toggle,
+.led-cell.clickable {
+  transition: transform var(--dur-micro-hover, 150ms) ease-out, filter var(--dur-micro-hover, 150ms) ease-out;
+}
+.neon:hover,
+.segmented button:hover,
+.theme-toggle:hover,
+.led-cell.clickable:hover {
+  filter: brightness(1.08);
+}
+.neon:active,
+.segmented button:active,
+.theme-toggle:active,
+.led-cell.clickable:active {
+  transition-duration: var(--dur-micro-press, 100ms);
+  transform: scale(0.96);
+}
+.neon:disabled:hover,
+.neon:disabled:active {
+  filter: none;
+  transform: none;
+}
 
 .button-row { display: flex; gap: 12px; margin-top: 12px; }
 .button-row .neon { flex: 1; }
@@ -169,6 +213,13 @@ html, body {
 }
 
 .turn-label { color: var(--neon-cyan); font-size: 1.3rem; font-weight: 800; min-height: 1.6rem; margin: 0 0 4px; }
+/* Fase 6: "nombre del jugador activo pulsa" -- toggled by twoplayer.js for
+   the whole turn, only in modo 2 jugadores. */
+.turn-label.turn-label-pulse { animation: turn-name-pulse var(--dur-2p-name-pulse, 700ms) ease-in-out infinite; will-change: transform; }
+@keyframes turn-name-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
 .score { font-size: clamp(4rem, 20vw, 6rem); font-weight: 800; color: var(--neon-green); line-height: 1; }
 .feedback-banner { min-height: 2rem; font-size: 1.4rem; font-weight: 800; margin-bottom: 8px; }
 
@@ -182,6 +233,17 @@ html, body {
 }
 .timer-fill { height: 100%; width: 100%; background: var(--neon-green); transition: width 0.1s linear, background-color 0.2s; }
 .timer-label { margin-top: 6px; font-size: 0.9rem; color: var(--text-muted); font-weight: 700; }
+
+/* Fase 3: últimos 5s -- heartbeat pulse on the timer track itself (opacity
+   only, no animated box-shadow/blur), quickening from 500ms to 350ms in
+   the final 2s. Classes toggled by duringplay.js's setUrgency(); the two
+   durations come from anim.js's custom properties. */
+.timer-track.urgent { animation: timer-heartbeat var(--dur-game-urgent-pulse, 500ms) ease-in-out infinite; will-change: opacity; }
+.timer-track.urgent.urgent-final { animation-duration: var(--dur-game-urgent-pulse-final, 350ms); }
+@keyframes timer-heartbeat {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
 
 .led-grid {
   display: grid;
@@ -199,6 +261,12 @@ html, body {
   font-weight: 800;
   font-size: 1.1rem;
   cursor: default;
+  /* Fase 3: "círculo objetivo se enciende, 150ms ease-out" -- a plain
+     one-shot color transition (not a loop, so exempt from the
+     no-animated-background-color rule) for the .active toggle below. The
+     hit/wrong flash+shake/scale (duringplay.js) run as WAAPI animations on
+     top of this and take priority while they're active. */
+  transition: background-color var(--dur-game-led-on, 150ms) ease-out, border-color var(--dur-game-led-on, 150ms) ease-out;
 }
 .led-cell.clickable { cursor: pointer; }
 .led-cell.active { background: var(--neon-cyan); color: var(--bg-primary); border-color: var(--neon-cyan); }
@@ -232,6 +300,34 @@ html, body {
 .overlay-card #ready-label { font-size: 1.6rem; font-weight: 800; margin: 0 0 20px; }
 .overlay-hint { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin: 14px 0 0; }
 
+/* Fase 2 (entrada al juego): no card, just the 3·2·1·¡YA! countdown itself
+   over the dimmed grid -- see intro.js for the per-number scale+fade. */
+.intro-countdown {
+  font-size: clamp(4rem, 24vw, 7rem);
+  font-weight: 800;
+  color: var(--neon-cyan);
+}
+
+/* Fase 4 (fin de ronda): "TIEMPO" card -- fixed/centered like the Fase 2
+   countdown, but no full-screen dimmer (the grid's own freeze+desaturate,
+   played underneath by roundend.js, already reads as "round over"). */
+.round-end-banner {
+  position: fixed;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 11;
+  margin: 0;
+  padding: 16px 40px;
+  border-radius: 16px;
+  background: var(--bg-surface);
+  border: 2px solid var(--neon-yellow);
+  font-size: clamp(2rem, 10vw, 3rem);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--neon-yellow);
+}
+
 .winner {
   font-size: 1.6rem;
   font-weight: 800;
@@ -243,10 +339,59 @@ html, body {
   to { color: var(--neon-yellow); }
 }
 
+/* Fase 6 (modo 2 jugadores): comparativa final -- see twoplayer.js. */
+.two-player-compare { width: 100%; margin-bottom: 20px; }
+.compare-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; position: relative; }
+.compare-name { width: 90px; flex-shrink: 0; text-align: right; font-weight: 700; font-size: 0.9rem; color: var(--text-primary); }
+.compare-track { flex: 1; height: 18px; border-radius: 9px; background: var(--bg-surface-alt); overflow: hidden; }
+.compare-fill {
+  height: 100%;
+  width: 100%;
+  border-radius: 9px;
+  background: var(--neon-cyan);
+  /* twoplayer.js animates this to scaleX(score/max) via WAAPI -- transform,
+     not width, per the perf rules. Resting state is scaled to 0 (not
+     width:0%) so the *track* still reports its full width for that math. */
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.compare-bar-row.compare-winner .compare-fill { background: var(--neon-green); }
+.compare-score { width: 44px; flex-shrink: 0; font-weight: 800; color: var(--text-primary); font-size: 0.9rem; }
+/* Positioned over the name column, not inline with it, so a long name
+   never pushes the crown around -- it always sits at the same spot above
+   whichever row just got marked .compare-winner. */
+.compare-crown {
+  position: absolute;
+  left: 8px;
+  top: -22px;
+  font-size: 1.3rem;
+  opacity: 0;
+  transform: scale(0.4) translateY(6px);
+}
+.compare-crown.show { animation: compare-crown-in var(--dur-2p-crown, 600ms) cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+@keyframes compare-crown-in {
+  0% { opacity: 0; transform: scale(0.4) translateY(6px); }
+  60% { opacity: 1; transform: scale(1.15) translateY(-2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
 #breakdown { width: 100%; margin-bottom: 20px; }
-.breakdown-row { display: flex; flex-wrap: wrap; justify-content: space-between; padding: 6px 4px; font-size: 1rem; }
+.breakdown-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 6px 4px; font-size: 1rem; }
 .breakdown-row .name { color: var(--text-primary); font-weight: 700; }
-.breakdown-row .score { font-size: 1rem; color: var(--neon-green); font-weight: 700; }
+/* Just-finished players get top billing: their score is the biggest number
+   on the results screen, bigger than the persisted leaderboard's own score
+   column below it (.leaderboard-row .score), so "what did I just get" reads
+   before "where do I rank all-time". */
+.breakdown-row .score { font-size: 1.75rem; color: var(--neon-green); font-weight: 800; }
+/* Fase 5: revealed a beat after the score count finishes (fade + slide,
+   see results.js) -- own line like .rank-badge below it, but lighter since
+   it's supporting detail, not the headline number. */
+.breakdown-row .score-detail {
+  width: 100%;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
 .breakdown-row .rank-badge {
   width: 100%;
   text-align: right;
@@ -266,20 +411,35 @@ html, body {
 .leaderboard-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
 .leaderboard-row .rank { color: var(--neon-cyan); font-weight: 800; width: 32px; text-align: left; }
 .leaderboard-row .name { flex: 1; text-align: left; }
-.leaderboard-row .score { color: var(--neon-green); font-weight: 700; }
+/* Deliberately smaller/lighter than .breakdown-row .score above -- the
+   all-time leaderboard is secondary to a player's own just-finished result. */
+.leaderboard-row .score { color: var(--neon-green); font-weight: 600; font-size: 0.9rem; }
 .leaderboard-row .difficulty { color: var(--text-muted); font-size: 0.85rem; text-transform: capitalize; }
 .leaderboard-empty { padding: 16px; color: var(--text-muted); }
 
 /* Marks a row this round's score just took (top-3 "takeover") -- a quick
-   drop-in-and-glow so the insertion reads as a physical event. */
+   drop-in-and-glow so the insertion reads as a physical event. Fase 5:
+   "fila propia se resalta" -- results.js adds this class (and scrolls it
+   into view) a beat after every row has already played its own plain
+   entrance (see .leaderboard-row-in-play below), so this reads as a
+   second, separate highlight rather than the row's only motion. */
 .leaderboard-row-new {
-  animation: leaderboard-row-in 0.5s ease-out both;
+  animation: leaderboard-row-in var(--dur-results-row-highlight, 600ms) ease-out both;
   border-radius: 8px;
 }
 @keyframes leaderboard-row-in {
-  0% { transform: translateY(-14px); opacity: 0; background: var(--neon-magenta); }
-  60% { transform: translateY(2px); opacity: 1; }
-  100% { transform: translateY(0); opacity: 1; background: transparent; }
+  0% { transform: translateY(-14px); opacity: 1; background: var(--neon-magenta); }
+  60% { transform: translateY(2px); }
+  100% { transform: translateY(0); background: transparent; }
+}
+
+/* Fase 5: confetti -- canvas only, no CSS to animate (see results.js).
+   Fixed/full-viewport, purely decorative. */
+.results-confetti {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
 }
 
 .theme-toggle {
@@ -297,7 +457,29 @@ html, body {
   color: var(--text-primary);
   border: 1px solid var(--border);
 }
-.theme-toggle:active { transform: translateY(1px); }
+
+/* Fase 3: racha >= 5 aura -- a radial-gradient glow layer *behind* the
+   mascot (z-index below .pet-canvas's 15), not a box-shadow/blur per the
+   perf rules. Sized a bit larger than the canvas so it reads as a glow
+   radiating from behind it; opacity-only pulse so it's cheap to run for as
+   long as a streak lasts. */
+.pet-aura {
+  position: fixed;
+  top: -14px;
+  left: -14px;
+  width: 198px;
+  height: 268px;
+  z-index: 14;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, var(--neon-yellow) 0%, transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+}
+.pet-aura.active { animation: pet-aura-pulse var(--dur-game-streak-aura, 800ms) ease-in-out infinite; will-change: opacity; }
+@keyframes pet-aura-pulse {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.65; }
+}
 
 .pet-canvas {
   position: fixed;
@@ -340,6 +522,14 @@ html, body {
   50% { transform: translate(2px, -1px); }
   75% { transform: translate(-1px, -2px); }
 }
+/* Fase 2 entrada al juego: mascot reposition nudge (see pet.js's
+   playIntroReposition) -- a small settle-into-place bounce, not a loop. */
+.pet-canvas.pet-intro { animation: pet-intro-reposition var(--dur-intro-pet-reposition, 400ms) ease-out; }
+@keyframes pet-intro-reposition {
+  0% { transform: translateY(-14px) scale(1.06); }
+  60% { transform: translateY(3px) scale(0.98); }
+  100% { transform: translateY(0) scale(1); }
+}
 /* DVD-bounce corner hit: one big flourish, not a loop. */
 .pet-canvas.pet-flash { animation: pet-flash 0.7s ease-out; }
 @keyframes pet-flash {
@@ -348,15 +538,88 @@ html, body {
   70% { transform: scale(1.1) rotate(-8deg); filter: brightness(1.3); }
   100% { transform: scale(1) rotate(0deg); filter: brightness(1); }
 }
+/* Project-wide reduced motion: covers both the OS-level
+   `prefers-reduced-motion` setting and the "modo simple" toggle, which
+   anim.js mirrors onto `<html data-motion="reduced">` so plain CSS
+   `@keyframes`/`transition` rules (not just the WAAPI calls routed through
+   `BatakAnim.play()`) obey the same single flag. Collapses every duration
+   to near-zero rather than removing animation outright, so state changes
+   (color, hidden/visible) still land -- just instantly. */
 @media (prefers-reduced-motion: reduce) {
-  .pet-canvas,
-  .pet-canvas.pet-hop,
-  .pet-canvas.pet-droop,
-  .pet-canvas.pet-shake,
-  .pet-canvas.pet-flash {
-    animation: none;
-    transition: none;
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
+}
+html[data-motion="reduced"] *,
+html[data-motion="reduced"] *::before,
+html[data-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* -- Fase 1: idle/atracción del menú (built by idle.js, mascot half by
+   pet.js) -------------------------------------------------------------- */
+
+/* Replaces the base `pet-bob` loop (see .pet-canvas above) while idle --
+   both animate `transform`, so only one can run at a time; pet.js swaps
+   the class rather than layering them. */
+.pet-canvas.pet-breathe { animation: pet-breathe var(--dur-idle-breathe, 2.5s) ease-in-out infinite; will-change: transform; }
+@keyframes pet-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+
+.attract-grid {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 4px 0 24px;
+  opacity: 0;
+  pointer-events: none; /* decorative only -- never steals a click from the real UI */
+}
+.attract-grid-visible { opacity: 1; } /* fade itself is played via BatakAnim.play(), see idle.js */
+.attract-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--neon-cyan);
+  opacity: 0.35; /* idle.js's grid-wave animates opacity/transform per dot on top of this resting state */
+}
+
+.attract-text {
+  margin-top: 4px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  min-height: 1.2rem;
+}
+
+/* "Modo simple" toggle -- forces reducedMotion regardless of the OS-level
+   prefers-reduced-motion setting (see anim.js's setSimpleMode()). */
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.checkbox-field input { width: 18px; height: 18px; accent-color: var(--neon-cyan); cursor: pointer; }
+
+/* CTA pulse while idle: one scale bump per --dur-idle-cta-cycle, sized so
+   the up-and-down bump itself takes ~900ms (DURATIONS.idle.ctaPulse) out
+   of that cycle (DELAYS.idle.ctaInterval) -- see the comment in anim.js
+   next to where --dur-idle-cta-cycle is set. */
+.pulse-cta { animation: cta-pulse var(--dur-idle-cta-cycle, 2s) ease-in-out infinite; will-change: transform; }
+@keyframes cta-pulse {
+  0%, 55%, 100% { transform: scale(1); }
+  22.5% { transform: scale(1.05); }
 }
 
 .connection-banner {
@@ -370,4 +633,21 @@ html, body {
   text-align: center;
   padding: 8px;
   z-index: 20;
+}
+
+/* Fase 7: toast (200ms in, 3s visible, 200ms out -- see micro.js). Bottom
+   center, out of the way of the mascot/theme-toggle corners. */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 20;
+  padding: 12px 24px;
+  border-radius: 999px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
