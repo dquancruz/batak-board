@@ -177,6 +177,12 @@ one board can be watched from several screens at once.
 - This can run at the same time as the desktop app (they share the same
   hardware controller only if launched from the same process — normally
   you'd run one or the other, or the web dashboard alone on a headless Pi).
+- The dashboard's full animation pass (idle attract, round entrance/exit,
+  in-game feedback, results, 2P turn cards, micro-interactions) is
+  centralized in `src/batak_board/web/static/anim.js` and split one file
+  per phase alongside it — see
+  [`src/batak_board/web/static/ANIMATIONS.md`](src/batak_board/web/static/ANIMATIONS.md)
+  for how to tune a duration or add a new mascot state.
 
 ## Running tests
 

@@ -8,7 +8,14 @@
 </head>
 <body>
   <div id="connection-banner" class="connection-banner" hidden>Reconectando&hellip;</div>
+  <!-- Fase 7: toast (see micro.js) -- one shared slot, bottom center. -->
+  <div id="toast" class="toast" hidden></div>
   <button id="theme-toggle" class="theme-toggle" type="button">&#9728; CLARO</button>
+  <!-- Fase 3 streak aura (racha >= 5) -- a glow layer behind the mascot,
+       not a box-shadow/blur (see style.css's perf rules), toggled by
+       pet.js's setAura(). Sits behind the canvas via z-index, not DOM
+       order, so it doesn't matter that it's declared first. -->
+  <div id="pet-aura" class="pet-aura" aria-hidden="true"></div>
   <!-- Purely decorative mascot, floats above every screen; see pet.js -->
   <canvas id="pet-canvas" class="pet-canvas" width="170" height="240" aria-hidden="true"></canvas>
 
@@ -16,6 +23,10 @@
     <section id="screen-menu" class="screen">
       <h1 class="title">BATAK BOARD</h1>
       <p class="subtitle">SISTEMA DE ENTRENAMIENTO DE REFLEJOS</p>
+
+      <!-- Fase 1 (idle/atracción), hidden until 20s of no interaction --
+           built/driven entirely by idle.js, see its header comment. -->
+      <div class="attract-grid" id="attract-grid" aria-hidden="true"></div>
 
       <div class="field">
         <label>MODO DE JUEGO</label>
@@ -36,6 +47,13 @@
 
       <button class="neon neon-green big" id="btn-start-menu">COMENZAR JUEGO</button>
       <button class="neon neon-muted big" id="btn-view-leaderboard">VER CLASIFICACIÓN</button>
+      <!-- Accesibilidad: fuerza reducedMotion además de prefers-reduced-motion
+           (ver anim.js), persistido en localStorage. -->
+      <label class="checkbox-field" id="simple-mode-field">
+        <input type="checkbox" id="simple-mode-toggle" />
+        MODO SIMPLE (reduce animaciones)
+      </label>
+      <p class="attract-text" id="attract-text" hidden></p>
     </section>
 
     <section id="screen-player_setup" class="screen">
@@ -53,7 +71,7 @@
       <div class="feedback-banner" id="feedback-banner"></div>
 
       <div class="timer">
-        <div class="timer-track"><div class="timer-fill" id="timer-fill"></div></div>
+        <div class="timer-track" id="timer-track"><div class="timer-fill" id="timer-fill"></div></div>
         <div class="timer-label" id="timer-label">0.0s</div>
       </div>
 
@@ -67,11 +85,29 @@
           <p class="overlay-hint">o presiona cualquier bot&oacute;n del tablero</p>
         </div>
       </div>
+
+      <!-- Fase 2 (entrada al juego): covers the grid while
+           state.awaiting_intro is true -- see intro.js. The round genuinely
+           hasn't started underneath (no LED lit yet), so this never lies
+           about what the physical board is doing. -->
+      <div class="overlay intro-overlay" id="intro-overlay" hidden>
+        <div class="intro-countdown" id="intro-countdown"></div>
+      </div>
+
+      <!-- Fase 4 (fin de ronda): "TIEMPO" card, played by roundend.js right
+           as a round ends and before the results screen takes over -- see
+           its header comment. Not a server-driven overlay (no matching
+           state flag): the round is already fully over underneath by the
+           time this shows, so there's nothing left to keep in sync with. -->
+      <p class="round-end-banner" id="round-end-banner" hidden>TIEMPO</p>
     </section>
 
     <section id="screen-results" class="screen">
-      <h2 class="heading">RESULTADOS</h2>
+      <h2 class="heading" id="results-heading">RESULTADOS</h2>
       <p class="winner" id="winner-label"></p>
+      <!-- Fase 6 (modo 2 jugadores): barras comparativas + corona --
+           built/shown only for two_player sessions, see twoplayer.js. -->
+      <div id="two-player-compare" class="two-player-compare" hidden></div>
       <div id="breakdown"></div>
       <!-- Kept right after the breakdown (above the leaderboard list) so it
            stays reachable without scrolling however long the leaderboard
@@ -79,6 +115,10 @@
       <button class="neon neon-green big" id="btn-restart">JUGAR DE NUEVO</button>
       <h3 class="label">CLASIFICACI&Oacute;N</h3>
       <div class="leaderboard" id="leaderboard"></div>
+      <!-- Fase 5: confetti, only played when someone from this round made
+           the top 3 -- see results.js. Fixed/full-viewport, purely
+           decorative, never intercepts clicks. -->
+      <canvas id="results-confetti" class="results-confetti" hidden aria-hidden="true"></canvas>
     </section>
 
     <!-- Client-only view: not a server-driven `state.screen` value, just a
@@ -91,7 +131,15 @@
     </section>
   </div>
 
+  <script src="/anim.js"></script>
   <script src="/pet.js"></script>
+  <script src="/idle.js"></script>
+  <script src="/intro.js"></script>
+  <script src="/duringplay.js"></script>
+  <script src="/roundend.js"></script>
+  <script src="/results.js"></script>
+  <script src="/twoplayer.js"></script>
+  <script src="/micro.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
