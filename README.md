@@ -153,6 +153,16 @@ BATAK_FORCE_SIM=1 python -m batak_board.main
 $env:BATAK_FORCE_SIM=1; python -m batak_board.main
 ```
 
+Conversely, on a deployed kiosk Pi where the buttons/LEDs must be real, set
+`BATAK_REQUIRE_HW=1` so a broken hardware setup (e.g. `gpiozero` or its pin
+factory backend from `requirements-pi.txt` not installed) fails loudly at
+startup instead of silently falling back to Simulation/Debug mode:
+
+```bash
+BATAK_REQUIRE_HW=1 python -m batak_board.main
+BATAK_REQUIRE_HW=1 python -m batak_board.web
+```
+
 ## Web dashboard
 
 The desktop app only ever renders to whatever screen it's running on. To
