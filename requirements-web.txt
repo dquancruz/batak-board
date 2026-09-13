@@ -1,5 +1,12 @@
 # Only needed to run the web dashboard (`python -m batak_board.web`), which
 # lets other devices on the network view/control the board from a browser.
 # Not required for the desktop (customtkinter) app.
-fastapi>=0.110
-uvicorn[standard]>=0.29
+# Floors are set to stay Python-3.7-compatible (Raspberry Pi OS Buster/
+# Bullseye ship 3.7); pip still resolves the newest version compatible with
+# whatever interpreter is running, so newer machines get newer releases.
+# fastapi drops 3.7 support at 0.104.0; uvicorn drops it at 0.25.0.
+fastapi>=0.95
+# [standard] pulls in uvloop/httptools/watchfiles for a perf boost; if that
+# extra fails to build on an older Pi's Python 3.7, drop to plain `uvicorn`
+# (the server only calls uvicorn.run(), no extra-specific APIs are used).
+uvicorn[standard]>=0.20

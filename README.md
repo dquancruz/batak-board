@@ -153,6 +153,16 @@ BATAK_FORCE_SIM=1 python -m batak_board.main
 $env:BATAK_FORCE_SIM=1; python -m batak_board.main
 ```
 
+Conversely, on a deployed kiosk Pi where the buttons/LEDs must be real, set
+`BATAK_REQUIRE_HW=1` so a broken hardware setup (e.g. `gpiozero` or its pin
+factory backend from `requirements-pi.txt` not installed) fails loudly at
+startup instead of silently falling back to Simulation/Debug mode:
+
+```bash
+BATAK_REQUIRE_HW=1 python -m batak_board.main
+BATAK_REQUIRE_HW=1 python -m batak_board.web
+```
+
 ## Web dashboard
 
 The desktop app only ever renders to whatever screen it's running on. To
@@ -177,6 +187,12 @@ one board can be watched from several screens at once.
 - This can run at the same time as the desktop app (they share the same
   hardware controller only if launched from the same process — normally
   you'd run one or the other, or the web dashboard alone on a headless Pi).
+- The dashboard's full animation pass (idle attract, round entrance/exit,
+  in-game feedback, results, 2P turn cards, micro-interactions) is
+  centralized in `src/batak_board/web/static/anim.js` and split one file
+  per phase alongside it — see
+  [`src/batak_board/web/static/ANIMATIONS.md`](src/batak_board/web/static/ANIMATIONS.md)
+  for how to tune a duration or add a new mascot state.
 
 ## Running tests
 

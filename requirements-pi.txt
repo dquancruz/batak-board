@@ -1,4 +1,19 @@
 # Only needed on the Raspberry Pi itself, for real GPIO/LED control.
 # Not required in Simulation/Debug mode on a regular dev machine.
-gpiozero>=2.0
-lgpio>=0.2; platform_system == "Linux"
+#
+# gpiozero is the abstraction our code uses (see hardware/gpio_controller.py);
+# RPi.GPIO is the pin-factory backend it drives pins through underneath.
+# We use RPi.GPIO instead of lgpio because lgpio has no piwheels wheel for
+# older Raspberry Pi OS/Python builds and fails to build from source without
+# `swig` + a working apt archive for the release -- RPi.GPIO has a prebuilt
+# piwheels wheel and needs no compiling. Same backend the bowling project
+# uses. If you're on a newer Pi 5 / Bookworm+ setup where RPi.GPIO doesn't
+# support the gpiochip driver, swap this back for `lgpio>=0.2`.
+# gpiozero 2.x's pin-factory discovery imports `importlib.metadata`, which
+# only exists in the stdlib from Python 3.8 -- it hard-crashes on Python 3.7
+# (e.g. Raspberry Pi OS Buster) with no fallback. Pin to the last 1.x release
+# instead: same LED/Button/pin_factory API we use, no importlib.metadata
+# dependency. If your Pi runs Python 3.8+, `gpiozero>=2.0` works fine too.
+gpiozero>=1.6,<2; python_version < "3.8"
+gpiozero>=2.0; python_version >= "3.8"
+RPi.GPIO>=0.7.1; platform_system == "Linux"

@@ -61,6 +61,10 @@
     happy: [[3, 6], [4, 6], [6, 6], [7, 6]], // squint -- also "concentrating"
     sad: [[4, 7], [6, 7]],
     wide: [[3, 5], [4, 5], [6, 5], [7, 5], [3, 6], [4, 6], [3, 7], [4, 7], [6, 6], [7, 6], [6, 7], [7, 7]],
+    // "open" shifted one pixel left/right -- the idle-attract "mirar a los
+    // lados" gesture (see GESTURES.look below), not used anywhere else.
+    lookLeft: [[2, 6], [3, 6], [2, 7], [3, 7], [5, 6], [6, 6], [5, 7], [6, 7]],
+    lookRight: [[4, 6], [5, 6], [4, 7], [5, 7], [7, 6], [8, 6], [7, 7], [8, 7]],
   };
   const MOUTHS = {
     neutral: [[4, 9], [5, 9], [6, 9]],
@@ -219,18 +223,21 @@
     ],
   };
 
-  let canvas, ctx;
+  let canvas, ctx, auraEl;
   let blinkTimer = null, revertTimer = null, quirkTimer = null;
   let fireTimer = null, sweatTimer = null;
   let attractTimer = null, attractRafHandle = null, attractActive = false;
   let sleeperTimer = null, zzzTimer = null, sleeping = false;
+  let gestureTimer = null, gestureIndex = 0, idleAttractActive = false;
   let runId = 0; // bumped on every new animation; stale callbacks check this and no-op
   let busy = false; // true while a reaction or quirk frame sequence owns the canvas
 
   let hitStreak = 0;
   let onFire = false;
+  let aura = false; // Fase 3: racha >= 5 -- a lighter glow than the >= 10 "on fire" escalation
   let panicking = false;
   let currentScreen = null;
+  let lastExpressionChangeAt = 0; // Fase 3: throttles react()'s pose change during "game" -- see its own comment
 
   function cssVar(name) {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -287,6 +294,11 @@
     return busy || attractActive || sleeping;
   }
 
+  // idleAttractActive is intentionally NOT part of isBusy(): reactions and
+  // the wandering attract/sleeper modes must still be able to interrupt it
+  // (see react() and enterIdleAttract() below), it just quiets the generic
+  // random-quirk scheduler while it owns the canvas -- see scheduleQuirk().
+
   // -- blink -----------------------------------------------------------
 
   function scheduleBlink() {
@@ -308,17 +320,44 @@
     if (typeof streak === "number") {
       hitStreak = streak;
       setOnFire(hitStreak >= 10);
+      setAura(hitStreak >= 5);
     }
+
+    // Fase 3: "cambio de expresión de mascota ... máximo 1 cambio cada
+    // 400ms" -- only during actual gameplay (results/etc. reactions above
+    // always get their pose; hitStreak/on-fire/aura tracking above still
+    // ran either way, so score-driven state never falls behind, only the
+    // face's own repaint gets skipped when it's too soon).
+    if (currentScreen === "game") {
+      const throttleMs = (window.BatakAnim && window.BatakAnim.DELAYS.game.petExpressionThrottle) || 400;
+      const now = performance.now();
+      if (now - lastExpressionChangeAt < throttleMs) return;
+      lastExpressionChangeAt = now;
+    }
+
     runId += 1; // aborts any in-flight quirk/attract/sleeper step -- gameplay feedback wins
     busy = true;
     stopAttractMode(true);
     stopSleeper();
+    if (idleAttractActive) exitIdleAttract(); // menu never emits hit/wrong/timeout in practice, but stay correct if it ever does
     clearTimeout(blinkTimer);
     clearTimeout(revertTimer);
     clearTimeout(quirkTimer);
 
     const mood = MOODS[kind];
     const extra = onFire && kind === "hit" ? shadesProps() : [];
+    // Approximates the spec's "120ms crossfade" for a pixel-art canvas
+    // (no cheap way to cross-fade two drawn frames) -- a quick opacity dip
+    // right as the new pose is painted, transform/opacity only per the
+    // perf rules.
+    if (window.BatakAnim) {
+      window.BatakAnim.play(
+        canvas,
+        [{ opacity: 1 }, { opacity: 0.55 }, { opacity: 1 }],
+        { duration: window.BatakAnim.DURATIONS.game.petCrossfade, easing: window.BatakAnim.EASINGS.standard },
+        "pet-expression"
+      );
+    }
     paint(kind, null, null, extra);
     canvas.classList.remove("pet-hop", "pet-droop");
     void canvas.offsetWidth; // force reflow so re-adding the same class restarts its CSS animation
@@ -349,6 +388,18 @@
     if (!isBusy()) paintIdle();
   }
 
+  // Fase 3: "racha >= 5: aura pulsante en mascota, 800ms loop, mientras
+  // dure la racha" -- a glow layer behind the canvas (#pet-aura in
+  // index.html), not the canvas itself, so it never fights with
+  // paint()/onFire's own props. Purely a class toggle; the 800ms loop
+  // lives in style.css as a plain opacity `@keyframes` (no box-shadow/blur,
+  // per the perf rules).
+  function setAura(active) {
+    if (active === aura) return;
+    aura = active;
+    if (auraEl) auraEl.classList.toggle("active", aura);
+  }
+
   function setPanic(active) {
     if (active === panicking) return;
     panicking = active;
@@ -367,7 +418,7 @@
   function scheduleQuirk() {
     clearTimeout(quirkTimer);
     quirkTimer = setTimeout(() => {
-      if (currentScreen === "game" || onFire || panicking || isBusy()) {
+      if (currentScreen === "game" || onFire || panicking || isBusy() || idleAttractActive) {
         scheduleQuirk(); // not a good moment -- try again later rather than force it
         return;
       }
@@ -405,12 +456,111 @@
     step();
   }
 
+  // -- Fase 1 idle/atracción: gestures ------------------------------------
+  // Driven from idle.js's enterIdleAttract()/exitIdleAttract(), called once
+  // the menu has sat untouched for 20s. Body stays in the breathing pose
+  // (`.pet-breathe`, a CSS loop -- see style.css) the whole time; every 5s
+  // one of these three short gestures plays on top of it, then it reverts
+  // to breathing until the next one. Reuses the same {ms, eyes, mouth,
+  // props} frame format as QUIRKS above.
+  const GESTURES = {
+    wave: [
+      { ms: 300, eyes: "happy", mouth: "happy", props: [] },
+      { ms: 300, eyes: "open", mouth: "happy", props: [] },
+      { ms: 300, eyes: "happy", mouth: "happy", props: [] },
+      { ms: 300, eyes: "open", mouth: "neutral", props: [] },
+    ],
+    yawn: [
+      { ms: 300, eyes: "blink", mouth: "o", props: [] },
+      { ms: 600, eyes: "blink", mouth: "o", props: [] },
+      { ms: 300, eyes: "open", mouth: "neutral", props: [] },
+    ],
+    look: [
+      { ms: 400, eyes: "lookLeft", mouth: "neutral", props: [] },
+      { ms: 400, eyes: "lookRight", mouth: "neutral", props: [] },
+      { ms: 400, eyes: "open", mouth: "neutral", props: [] },
+    ],
+  };
+  const GESTURE_ORDER = ["wave", "yawn", "look"];
+
+  function playGesture(key) {
+    const frames = GESTURES[key];
+    if (!canvas || !frames || !idleAttractActive || busy) return; // a reaction wins if one somehow lands here
+    runId += 1;
+    const myRun = runId;
+    let i = 0;
+    const step = () => {
+      if (myRun !== runId || !idleAttractActive) return; // superseded -- see exitIdleAttract()
+      if (i >= frames.length) {
+        if (idleAttractActive) paintIdle(); // back to the plain breathing pose
+        return;
+      }
+      const f = frames[i++];
+      paint("idle", f.eyes, f.mouth, f.props);
+      gestureTimer = setTimeout(step, f.ms);
+    };
+    step();
+  }
+
+  function scheduleGesture() {
+    clearTimeout(gestureTimer);
+    const interval = (window.BatakAnim && window.BatakAnim.DELAYS.idle.gestureInterval) || 5000;
+    gestureTimer = setTimeout(() => {
+      if (!idleAttractActive) return;
+      const key = GESTURE_ORDER[gestureIndex % GESTURE_ORDER.length];
+      gestureIndex += 1;
+      playGesture(key);
+      scheduleGesture();
+    }, interval);
+  }
+
+  function enterIdleAttract() {
+    if (idleAttractActive || !canvas || isBusy()) return;
+    idleAttractActive = true;
+    // The generic random-quirk scheduler and the wandering DVD-bounce/
+    // peek-a-boo attract mode would otherwise fight this one for the
+    // canvas -- pause both for as long as this runs.
+    clearTimeout(quirkTimer);
+    stopAttractMode(true);
+    canvas.classList.add("pet-breathe");
+    paintIdle();
+    scheduleBlink();
+    gestureIndex = 0;
+    scheduleGesture();
+  }
+
+  function exitIdleAttract() {
+    if (!idleAttractActive) return;
+    idleAttractActive = false;
+    runId += 1; // abort any gesture frame mid-flight
+    clearTimeout(gestureTimer);
+    canvas.classList.remove("pet-breathe");
+    if (!isBusy()) paintIdle();
+    scheduleBlink();
+    scheduleQuirk();
+    if (currentScreen === "menu") scheduleAttractMode();
+  }
+
+  // -- Fase 2 entrada al juego: reposition nudge --------------------------
+  // Driven from intro.js right as the countdown starts (both the fresh
+  // session and the 2P handoff). Purely a CSS transform bounce on the
+  // canvas element itself -- doesn't touch paint()/mood, so it layers
+  // fine on top of whatever pose is currently showing.
+  function playIntroReposition() {
+    if (!canvas) return;
+    canvas.classList.remove("pet-intro");
+    void canvas.offsetWidth; // force reflow so a second nudge (e.g. 2P handoff) restarts the animation
+    canvas.classList.add("pet-intro");
+    const ms = (window.BatakAnim && window.BatakAnim.DURATIONS.intro.petReposition) || 400;
+    setTimeout(() => canvas.classList.remove("pet-intro"), ms);
+  }
+
   // -- attract mode (menu only): DVD-bounce or peek-a-boo -----------------
 
   function scheduleAttractMode() {
     clearTimeout(attractTimer);
     attractTimer = setTimeout(() => {
-      if (currentScreen === "menu" && !isBusy()) startAttractMode();
+      if (currentScreen === "menu" && !isBusy() && !idleAttractActive) startAttractMode();
       else scheduleAttractMode();
     }, 12000 + Math.random() * 8000);
   }
@@ -444,7 +594,7 @@
   }
 
   function startAttractMode() {
-    if (currentScreen !== "menu" || isBusy()) return;
+    if (currentScreen !== "menu" || isBusy() || idleAttractActive) return;
     runId += 1;
     const myRun = runId;
     attractActive = true;
@@ -580,16 +730,21 @@
     const madeTop3 = ranks.some((i) => i < 3);
     const onBoardAtAll = ranks.length > 0;
 
+    // Fase 5: "mascota celebra o se desanima, 1.5s" -- all three beats
+    // below share that one duration (DURATIONS.results.petCelebrate)
+    // rather than each hardcoding its own.
+    const celebrateMs = (window.BatakAnim && window.BatakAnim.DURATIONS.results.petCelebrate) || 1500;
+
     if (madeTop3) {
-      playTakeover();
+      playTakeover(celebrateMs);
     } else if (!onBoardAtAll && list.length > 0) {
-      playFailedToRank();
+      playFailedToRank(celebrateMs);
     } else {
-      react("hit", 1800); // ordinary celebration -- on the board, just not top 3 (or board was empty)
+      react("hit", celebrateMs); // ordinary celebration -- on the board, just not top 3 (or board was empty)
     }
   }
 
-  function playTakeover() {
+  function playTakeover(durationMs) {
     runId += 1;
     busy = true;
     clearTimeout(blinkTimer);
@@ -603,10 +758,10 @@
       paintIdle();
       scheduleBlink();
       scheduleQuirk();
-    }, 2200);
+    }, durationMs);
   }
 
-  function playFailedToRank() {
+  function playFailedToRank(durationMs) {
     runId += 1;
     busy = true;
     clearTimeout(blinkTimer);
@@ -620,7 +775,7 @@
       paintIdle();
       scheduleBlink();
       scheduleQuirk();
-    }, 2600);
+    }, durationMs);
   }
 
   // -- context feed from app.js's render loop ------------------------------
@@ -633,6 +788,21 @@
     setPanic(shouldPanic);
 
     if (screenChanged) {
+      // A reaction/celebration in flight here (busy === true) can only be a
+      // leftover from the screen just left -- a mid-round hit/wrong/timeout
+      // reaction, or the results takeover/failed-to-rank beat if the user
+      // clicked away before its 1.8-2.6s ran out. onScreenEnter() (called
+      // right before this, in the same render()) is the only thing that
+      // *starts* a reaction on screen entry, and it only ever does that for
+      // "results" -- so everywhere else it's safe to force it to finish
+      // early rather than let it keep painting over the new screen for
+      // however long it had left.
+      if (screen !== "results") {
+        runId += 1;
+        clearTimeout(revertTimer);
+        busy = false;
+        canvas.classList.remove("pet-hop", "pet-droop");
+      }
       stopAttractMode(true);
       stopSleeper();
       clearTimeout(attractTimer);
@@ -650,11 +820,12 @@
     canvas.height = CANVAS_H;
     ctx = canvas.getContext("2d");
     ctx.imageSmoothingEnabled = false;
+    auraEl = document.getElementById("pet-aura");
     paintIdle();
     scheduleBlink();
     scheduleQuirk();
   }
 
   document.addEventListener("DOMContentLoaded", init);
-  window.BatakPet = { react, setContext, onResults };
+  window.BatakPet = { react, setContext, onResults, enterIdleAttract, exitIdleAttract, playIntroReposition };
 })();

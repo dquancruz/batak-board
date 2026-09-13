@@ -20,6 +20,8 @@ let feedbackClearTimer = null;
 let showingLeaderboardOnly = false;
 let hitStreak = 0;
 let lastActiveIndex = null;
+let previousActiveButton = null; // read by duringplay.js's onFeedback() -- see updateGame()
+let roundEndPlaying = false; // Fase 4 outro in flight -- see render()
 
 const els = {
   connectionBanner: document.getElementById("connection-banner"),
@@ -30,12 +32,14 @@ const els = {
   turnLabel: document.getElementById("turn-label"),
   scoreLabel: document.getElementById("score-label"),
   feedbackBanner: document.getElementById("feedback-banner"),
+  timerTrack: document.getElementById("timer-track"),
   timerFill: document.getElementById("timer-fill"),
   timerLabel: document.getElementById("timer-label"),
   ledGrid: document.getElementById("led-grid"),
   simHint: document.getElementById("sim-hint"),
   readyOverlay: document.getElementById("ready-overlay"),
   readyLabel: document.getElementById("ready-label"),
+  introOverlay: document.getElementById("intro-overlay"),
   winnerLabel: document.getElementById("winner-label"),
   breakdown: document.getElementById("breakdown"),
   leaderboard: document.getElementById("leaderboard"),
@@ -45,8 +49,14 @@ const els = {
 // -- theme (light/dark), persisted per-browser via localStorage ----------
 
 function applyTheme(mode) {
+  // Fase 7: "cambio de tema claro/oscuro, 400ms" -- see the
+  // .theme-transitioning rule in style.css for why this is a class swap
+  // instead of a permanent transition on every element.
+  const swapMs = window.BatakAnim ? window.BatakAnim.DURATIONS.micro.themeSwap : 400;
+  document.documentElement.classList.add("theme-transitioning");
   document.documentElement.dataset.theme = mode;
   els.themeToggle.innerHTML = mode === "light" ? "&#127769; OSCURO" : "&#9728; CLARO";
+  setTimeout(() => document.documentElement.classList.remove("theme-transitioning"), swapMs);
 }
 
 (function initTheme() {
@@ -68,6 +78,20 @@ els.themeToggle.addEventListener("click", () => {
     // ignore - theme just won't persist across reloads
   }
 });
+
+// -- "modo simple" toggle: forces reducedMotion regardless of the OS-level
+// prefers-reduced-motion setting -- anim.js owns the flag/persistence,
+// this is just the checkbox reflecting and driving it. -------------------
+
+(function initSimpleModeToggle() {
+  const toggle = document.getElementById("simple-mode-toggle");
+  if (!toggle || !window.BatakAnim) return;
+  toggle.checked = window.BatakAnim.simpleMode;
+  toggle.addEventListener("change", () => {
+    window.BatakAnim.setSimpleMode(toggle.checked);
+    if (window.BatakMicro) window.BatakMicro.toast(toggle.checked ? "Modo simple activado" : "Modo simple desactivado");
+  });
+})();
 
 function send(action, extra) {
   if (socket && socket.readyState === WebSocket.OPEN) {
@@ -129,14 +153,58 @@ function render(state) {
   // of this purely-local view rather than stranding it out of sync.
   if (state.screen !== "menu") showingLeaderboardOnly = false;
 
+  // Always safe regardless of what's actually showing right now -- the
+  // standalone leaderboard view and idle.js's 20s timer don't care whether
+  // Fase 4's outro (below) is mid-flight.
+  renderLeaderboardList(els.leaderboardStandalone, state.leaderboard);
+  window.BatakLeaderboardTop = (state.leaderboard && state.leaderboard[0]) || null; // read by idle.js's text rotation
+  if (window.BatakIdle) window.BatakIdle.setMenuActive(state.screen === "menu");
+
+  if (roundEndPlaying) {
+    if (state.screen === "results") return; // still playing, nothing else to do this tick
+    // Safety net for an edge case that shouldn't happen in normal play
+    // (see roundend.js's header comment): the server moved on from
+    // "results" while the outro was still mid-sequence -- abandon it
+    // cleanly rather than leave the UI stuck showing a stale "game"
+    // screen underneath.
+    roundEndPlaying = false;
+    if (window.BatakRoundEnd) window.BatakRoundEnd.cancel();
+  }
+
+  // Computed before lastScreen is updated below -- true exactly once, on
+  // the render() where a fresh session's countdown begins (menu/player_setup
+  // -> game). The 2P ready->countdown handoff never hits this (screen stays
+  // "game" throughout); intro.js's onState() picks that case up instead.
+  const enteringGameFresh = state.screen !== lastScreen && state.screen === "game" && state.awaiting_intro;
+  // True exactly once, when a round genuinely ends (not the 2P mid-session
+  // handoff, which keeps screen === "game" and uses the ready-overlay
+  // instead -- see roundend.js's header comment for why that's excluded).
+  const enteringResultsFresh = state.screen !== lastScreen && state.screen === "results" && lastScreen === "game";
+
+  if (enteringResultsFresh && window.BatakRoundEnd) {
+    roundEndPlaying = true;
+    window.BatakRoundEnd.play(() => {
+      roundEndPlaying = false;
+      onScreenEnter(state);
+      lastScreen = state.screen;
+      showScreen(showingLeaderboardOnly ? "leaderboard" : state.screen);
+      if (window.BatakPet) window.BatakPet.setContext(state.screen, state.time_left, state.round_duration);
+    });
+    return; // the game screen keeps showing exactly as last rendered (frozen grid, etc.) until the outro finishes
+  }
+
   if (state.screen !== lastScreen) {
+    if (lastScreen === "results" && window.BatakResults) window.BatakResults.exit();
     onScreenEnter(state);
     lastScreen = state.screen;
   }
-  renderLeaderboardList(els.leaderboardStandalone, state.leaderboard); // kept live even off-screen
   showScreen(showingLeaderboardOnly ? "leaderboard" : state.screen);
 
   if (window.BatakPet) window.BatakPet.setContext(state.screen, state.time_left, state.round_duration);
+  if (window.BatakIntro) {
+    if (enteringGameFresh) window.BatakIntro.enter();
+    window.BatakIntro.onState(state);
+  }
   if (state.screen === "menu") updateMenu(state);
   if (state.screen === "game") updateGame(state);
 }
@@ -146,7 +214,7 @@ function onScreenEnter(state) {
   if (state.screen === "game") resetStreak();
   if (state.screen === "results") {
     buildResults(state);
-    if (window.BatakPet) window.BatakPet.onResults(state.players, state.leaderboard); // takeover / failed-to-rank / plain celebration -- see pet.js
+    if (window.BatakResults) window.BatakResults.enter(state); // owns all of Fase 5's timing, including the pet reaction -- see results.js
   }
 }
 
@@ -179,6 +247,7 @@ function buildPlayerInputs(state) {
 function resetStreak() {
   hitStreak = 0;
   lastActiveIndex = null;
+  previousActiveButton = null;
 }
 
 function updateGame(state) {
@@ -188,9 +257,14 @@ function updateGame(state) {
     // A fresh turn (including the 2-player handoff) starts its own streak.
     hitStreak = 0;
     lastActiveIndex = activeIndex;
+    // Fase 6: turn card entrance -- only a real turn *change* in 2P mode,
+    // not single player's own one-time -1->0 transition at game start
+    // (intro.js already owns that moment).
+    if (state.mode === "two_player" && window.BatakTwoPlayer) window.BatakTwoPlayer.onTurnChange();
   }
 
   els.turnLabel.textContent = state.mode === "two_player" && active ? `TURNO DE: ${active.name.toUpperCase()}` : "";
+  if (window.BatakTwoPlayer) window.BatakTwoPlayer.setNamePulse(state.mode === "two_player" && !!active);
   els.scoreLabel.textContent = active ? active.score : 0;
 
   const fraction = state.round_duration > 0 ? Math.max(0, Math.min(1, state.time_left / state.round_duration)) : 0;
@@ -199,22 +273,34 @@ function updateGame(state) {
     fraction < 0.15 ? "var(--neon-red)" : fraction < 0.4 ? "var(--neon-yellow)" : "var(--neon-green)";
   els.timerLabel.textContent = `${state.time_left.toFixed(1)}s`;
 
+  const gridLocked = state.is_hardware || state.awaiting_ready || state.awaiting_intro;
   els.ledGrid.querySelectorAll(".led-cell").forEach((cell, i) => {
     cell.classList.toggle("active", i === state.active_button);
-    cell.disabled = state.is_hardware || state.awaiting_ready;
-    cell.classList.toggle("clickable", !state.is_hardware && !state.awaiting_ready);
+    cell.disabled = gridLocked;
+    cell.classList.toggle("clickable", !state.is_hardware && !state.awaiting_ready && !state.awaiting_intro);
   });
   els.simHint.hidden = state.is_hardware;
 
   if (state.feedback_seq !== lastFeedbackSeq && state.last_feedback) {
     lastFeedbackSeq = state.feedback_seq;
     pulseFeedback(state.last_feedback);
+    // previousActiveButton is still last tick's value here -- the engine
+    // has already moved active_button on to the *next* LED by the time
+    // this feedback arrives, so this is the one that was actually just
+    // hit/missed. See duringplay.js.
+    if (window.BatakDuringPlay) window.BatakDuringPlay.onFeedback(state.last_feedback, previousActiveButton);
   }
+  previousActiveButton = state.active_button;
+
+  if (window.BatakDuringPlay) window.BatakDuringPlay.setUrgency(state.time_left, state.round_duration);
 
   els.readyOverlay.hidden = !state.awaiting_ready;
   if (state.awaiting_ready) {
     els.readyLabel.textContent = `¡Listo, ${state.next_player_name}!`;
   }
+
+  // Fase 2 countdown card -- see intro.js for what actually plays inside it.
+  els.introOverlay.hidden = !state.awaiting_intro;
 }
 
 function pulseFeedback(kind) {
@@ -247,10 +333,11 @@ function renderLeaderboardList(container, leaderboard, newIndexes) {
   leaderboard.forEach((entry, i) => {
     const row = document.createElement("div");
     row.className = "leaderboard-row";
-    if (newIndexes && newIndexes.has(i)) {
-      row.classList.add("leaderboard-row-new");
-      row.style.animationDelay = `${i * 60}ms`;
-    }
+    // Marked, not animated, here -- results.js owns all of Fase 5's timing
+    // (every row's own entrance, then this one's extra highlight+scroll a
+    // beat later). The standalone leaderboard view never passes
+    // newIndexes, so it never gets marked.
+    if (newIndexes && newIndexes.has(i)) row.dataset.newEntry = "true";
     row.innerHTML = `<span class="rank">#${i + 1}</span><span class="name">${escapeHtml(entry.name)}</span><span class="score">${entry.score} pts</span><span class="difficulty">${DIFFICULTY_LABELS[entry.difficulty] || entry.difficulty}</span>`;
     container.appendChild(row);
   });
@@ -265,7 +352,10 @@ function buildResults(state) {
     const rankText = rankIdx >= 0 ? `Puesto #${rankIdx + 1}` : "Sin clasificar";
     const row = document.createElement("div");
     row.className = "breakdown-row";
-    row.innerHTML = `<span class="name">${escapeHtml(player.name)}</span><span class="score">${player.score} pts (${player.hits} aciertos / ${player.misses} fallos)</span><span class="rank-badge">${rankText}</span>`;
+    // score-count starts at 0 -- results.js counts it up to data-target;
+    // score-detail (aciertos/fallos) stays out of the initial layout flow
+    // until results.js reveals it a beat later (see its fadeIn()).
+    row.innerHTML = `<span class="name">${escapeHtml(player.name)}</span><span class="score"><span class="score-count" data-target="${player.score}">0</span> pts</span><span class="score-detail">(${player.hits} aciertos / ${player.misses} fallos)</span><span class="rank-badge">${rankText}</span>`;
     els.breakdown.appendChild(row);
   });
 
@@ -288,16 +378,21 @@ function escapeHtml(text) {
 
 // -- WebSocket connection with simple auto-reconnect -------------------
 
+let wasDisconnected = false; // only toast "Conectado" on a *re*connect, not the page's first-ever connect
+
 function connect() {
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
   socket = new WebSocket(`${protocol}//${location.host}/ws`);
 
   socket.onopen = () => {
     els.connectionBanner.hidden = true;
+    if (wasDisconnected && window.BatakMicro) window.BatakMicro.toast("Conectado");
+    wasDisconnected = false;
   };
   socket.onmessage = (event) => render(JSON.parse(event.data));
   socket.onclose = () => {
     els.connectionBanner.hidden = false;
+    wasDisconnected = true;
     setTimeout(connect, 1500);
   };
   socket.onerror = () => socket.close();
